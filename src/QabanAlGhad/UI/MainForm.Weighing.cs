@@ -18,7 +18,7 @@ namespace WeighbridgeBridge
  public sealed partial class MainForm
  {
   void StartReading(){
-   try{settings=ReadSettings();if(enableSend.Checked&&MessageBox.Show("سيُرسل وزن الميزان الحقيقي إلى:\n"+settings.Endpoint+"\nالشركة: "+settings.Company+"\nهل تأكدتِ من الوجهة وأغلقتِ برنامج الإرسال القديم؟","تفعيل الإرسال",MessageBoxButtons.YesNo,MessageBoxIcon.Question)!=DialogResult.Yes)return;
+   try{settings=ReadSettings();
     primary.Configure(settings.Endpoint,token.Text,settings.Company,settings.Freshness);returns.Configure(settings.ReturnsEndpoint,returnsToken.Text,settings.Company,settings.Freshness);
     running=true;received=-1;frames=new Frames();nextOpen=0;fields.Enabled=false;enableSend.Enabled=false;start.Enabled=false;stop.Enabled=true;save.Enabled=false;weight.Text="— kg";httpState.Text=enableSend.Checked?"الإرسال: بانتظار قراءة حديثة":"الإرسال: مراقبة فقط";WriteLog("بدء القراءة "+settings.Port+" / "+settings.Baud+" / "+settings.DataBits+" / "+settings.Parity+" / StopBits.One");
    }catch(Exception ex){MessageBox.Show(ex.Message);}
