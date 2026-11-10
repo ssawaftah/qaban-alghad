@@ -37,4 +37,7 @@
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="InterfaceTests.cs" />
+  </ItemGroup>
 </Project>

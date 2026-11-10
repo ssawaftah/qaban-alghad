@@ -51,4 +51,9 @@
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="UI\SettingsUnlockDialog.cs" />
+    <Compile Include="Infrastructure\Security\SettingsGate.cs" />
+    <Compile Include="Domain\Delivery\OperationStatus.cs" />
+  </ItemGroup>
 </Project>

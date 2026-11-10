@@ -39,6 +39,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Health fixture compilation failed.' }
 & $csc /nologo /target:exe /define:FAILED_HOST /reference:System.Web.Extensions.dll "/out:$out\UpdateFailedHost.exe" $fixture
 if ($LASTEXITCODE -ne 0) { throw 'Failed fixture compilation failed.' }
 if (!$SkipTests) {
+    & $tests --ui-test
+    if ($LASTEXITCODE -ne 0) { throw 'Windows UI tests failed.' }
     & $tests --update-lifecycle
     if ($LASTEXITCODE -ne 0) { throw 'Real Windows update/rollback tests failed.' }
 }

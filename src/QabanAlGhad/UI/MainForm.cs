@@ -18,10 +18,10 @@ namespace WeighbridgeBridge
  public sealed partial class MainForm:Form {
   TextBox port=new TextBox(),endpoint=new TextBox(),company=new TextBox(),marker=new TextBox(),token=new TextBox(),returnsEndpoint=new TextBox(),returnsToken=new TextBox();
   NumericUpDown baud=new NumericUpDown(),bits=new NumericUpDown(),interval=new NumericUpDown(),fresh=new NumericUpDown();
-  ComboBox parity=new ComboBox(); CheckBox enableSend=new CheckBox();
+  ComboBox parity=new ComboBox();
   Button start=new Button(),stop=new Button(),save=new Button();
   Label weight=new Label(),serialState=new Label(),httpState=new Label(),age=new Label();
-  TextBox log=new TextBox(); TableLayoutPanel fields=new TableLayoutPanel();
+  TableLayoutPanel fields=new TableLayoutPanel();
   SerialPort serial;Frames frames;decimal latest;long received=-1;bool running;DateTime sampledAtUtc;
   readonly Stopwatch clock=Stopwatch.StartNew();long nextOpen;
   readonly System.Windows.Forms.Timer poll=new System.Windows.Forms.Timer();
