@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Drawing;
 using System.Diagnostics;
@@ -32,8 +32,15 @@ namespace WeighbridgeBridge {
     form.Shown+=(sender,e)=>{
      try{
       var start=(Button)Field(form,"start");var weight=(Label)Field(form,"weight");var status=(Button)Field(form,"operationIndicator");
-      Check(weight.PointToScreen(Point.Empty).X>start.PointToScreen(Point.Empty).X,"weight physically right of controls");
-      Check(form.ClientSize.Width<=700&&form.ClientSize.Height<=420,"compact default window");
+      var stop=(Button)Field(form,"stop");var overviewNav=(Button)Field(form,"overviewNav");var logsNav=(Button)Field(form,"logsNav");var settingsNav=(Button)Field(form,"settingsNav");
+      Check(weight.PointToScreen(Point.Empty).Y+weight.Height<start.PointToScreen(Point.Empty).Y,"weight above action row");
+      Check(start.PointToScreen(Point.Empty).X>stop.PointToScreen(Point.Empty).X&&stop.PointToScreen(Point.Empty).X>status.PointToScreen(Point.Empty).X,"actions ordered right to left");
+      Check(start.Top==stop.Top&&stop.Top==status.Top,"actions share one row");
+      Check(Math.Abs(start.Left-stop.Right- (stop.Left-status.Right))<=1,"equal action gaps");
+      Check(overviewNav.PointToScreen(Point.Empty).X>logsNav.PointToScreen(Point.Empty).X&&logsNav.PointToScreen(Point.Empty).X>settingsNav.PointToScreen(Point.Empty).X,"tabs ordered weight logs settings");
+      Check(Math.Abs(overviewNav.Width-logsNav.Width)<=1&&Math.Abs(logsNav.Width-settingsNav.Width)<=1,"tabs equal width");
+      Check(overviewNav.BackColor.G>overviewNav.BackColor.R&&overviewNav.ForeColor==Color.White,"default tab active green");
+      Check(form.ClientSize.Width<=700&&form.ClientSize.Height<=280,"compact default window");
       Size compactSize=form.ClientSize;
       Check(weight.Text=="kg","no dash or fabricated zero");
       foreach(var control in All(form))Check(!(control is CheckBox),"no send checkbox");
@@ -59,7 +66,7 @@ namespace WeighbridgeBridge {
       foreach(var control in All((Control)Field(form,"settingsPage"))){var grid=control as TableLayoutPanel;if(grid==null||grid.ColumnCount!=2)continue;foreach(Control label in grid.Controls){if(!(label is Label))continue;int row=grid.GetRow(label);var input=grid.GetControlFromPosition(1,row);if(input==null)continue;Check(Math.Abs(label.PointToScreen(Point.Empty).Y+label.Height/2-input.PointToScreen(Point.Empty).Y-input.Height/2)<15,"setting labels align with inputs");}}
       Check(form.ClientSize.Width>compactSize.Width&&form.ClientSize.Height>compactSize.Height,"settings expand for readability");
       Capture(form,"ui-settings.png");
-      Call(form,"ShowScreen",Field(form,"logsPage"),Field(form,"logsNav"));Call(form,"WriteLog","اختبار واجهة محلي دون أوزان إنتاجية");
+      Call(form,"ShowScreen",Field(form,"logsPage"),Field(form,"logsNav"));Check(logsNav.ForeColor==Color.White&&overviewNav.ForeColor!=Color.White,"selected tab highlight follows navigation");Call(form,"WriteLog","اختبار واجهة محلي دون أوزان إنتاجية");
       Call(form,"RememberReading",now,"ST,GS,-120,kg",true,-120m);Call(form,"FlushReadingLog",now);Call(form,"FlushReadingLog",now+100);
       var readings=(DataGridView)Field(form,"readingGrid");var events=(DataGridView)Field(form,"eventGrid");
       Check(readings.Rows.Count==1,"one reading per second");

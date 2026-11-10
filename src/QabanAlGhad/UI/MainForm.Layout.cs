@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Diagnostics;
 using System.Drawing;
@@ -18,12 +18,14 @@ namespace WeighbridgeBridge
   void StyleButton(Button b,string text,bool primary){b.Text=text;b.Font=new Font("Segoe UI",10,FontStyle.Bold);b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderSize=0;b.UseVisualStyleBackColor=false;b.BackColor=primary?Accent:Color.FromArgb(231,237,241);b.ForeColor=primary?Color.White:Ink;b.FlatAppearance.MouseOverBackColor=primary?Color.FromArgb(0,105,98):Color.FromArgb(219,229,235);b.Height=44;b.Width=142;b.Margin=new Padding(5);b.Cursor=Cursors.Hand;b.TextAlign=ContentAlignment.MiddleCenter;b.AccessibleName=text;}
   FlowLayoutPanel Buttons(params Control[] buttons){var flow=new FlowLayoutPanel{AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,WrapContents=false,FlowDirection=FlowDirection.RightToLeft,BackColor=Canvas,Margin=new Padding(0)};flow.Controls.AddRange(buttons);return flow;}
   void BuildInterface(){
-   Text="قبان الغد";ClientSize=new Size(640,360);MinimumSize=new Size(600,340);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Segoe UI",10);AutoScaleMode=AutoScaleMode.Font;RightToLeft=RightToLeft.Yes;RightToLeftLayout=true;BackColor=Canvas;
+   Text="قبان الغد";ClientSize=new Size(640,250);MinimumSize=new Size(600,280);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Segoe UI",10);AutoScaleMode=AutoScaleMode.Font;RightToLeft=RightToLeft.Yes;RightToLeftLayout=true;BackColor=Canvas;
    try{Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);}catch{Icon=SystemIcons.Application;}
-   var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Padding=new Padding(16,12,16,12),BackColor=Canvas};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,42));root.RowStyles.Add(new RowStyle(SizeType.Absolute,48));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(root);
-   var title=CenterLabel("قبان الغد",18,Ink,Canvas);title.Font=new Font("Segoe UI",18,FontStyle.Bold);root.Controls.Add(title,0,0);
-   StyleButton(overviewNav,"الوزن",true);StyleButton(settingsNav,"الإعدادات",false);StyleButton(logsNav,"السجل",false);foreach(var nav in new[]{overviewNav,settingsNav,logsNav}){nav.Width=110;nav.Height=36;}root.Controls.Add(Centered(Buttons(overviewNav,settingsNav,logsNav)),0,1);
-   screenHost.Dock=DockStyle.Fill;screenHost.BackColor=Canvas;root.Controls.Add(screenHost,0,2);
+   var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Padding=new Padding(16,12,16,12),BackColor=Canvas};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,44));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(root);
+   var navigation=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=3,RowCount=1,BackColor=Canvas,Margin=new Padding(0),RightToLeft=RightToLeft.Yes};
+   for(int column=0;column<3;column++)navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f/3));navigation.RowStyles.Add(new RowStyle(SizeType.Percent,100));
+   StyleButton(overviewNav,"الوزن",true);StyleButton(logsNav,"السجل",false);StyleButton(settingsNav,"الإعدادات",false);
+   var tabs=new[]{overviewNav,logsNav,settingsNav};for(int column=0;column<tabs.Length;column++){tabs[column].Dock=DockStyle.Fill;tabs[column].Margin=new Padding(0);navigation.Controls.Add(tabs[column],column,0);}root.Controls.Add(navigation,0,0);
+   screenHost.Dock=DockStyle.Fill;screenHost.BackColor=Canvas;screenHost.Margin=new Padding(0);root.Controls.Add(screenHost,0,1);
    foreach(var page in new[]{overviewPage,settingsPage,logsPage}){page.Dock=DockStyle.Fill;page.AutoScroll=true;page.BackColor=Canvas;screenHost.Controls.Add(page);}
    BuildOverview();BuildSettings();BuildLogs();ShowScreen(overviewPage,overviewNav);
    overviewNav.Click+=(s,e)=>ShowScreen(overviewPage,overviewNav);settingsNav.Click+=(s,e)=>{if(settingsPage.Visible)return;using(var gate=new SettingsUnlockDialog()){if(gate.ShowDialog(this)==DialogResult.OK)ShowScreen(settingsPage,settingsNav);}};logsNav.Click+=(s,e)=>ShowScreen(logsPage,logsNav);
@@ -42,15 +44,15 @@ namespace WeighbridgeBridge
    Left=Math.Max(area.Left,Math.Min(center.X-Width/2,area.Right-Width));Top=Math.Max(area.Top,Math.Min(center.Y-Height/2,area.Bottom-Height));
   }
   void BuildOverview(){
-   var host=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=3,RowCount=1,Padding=new Padding(6,12,6,10),BackColor=Canvas,RightToLeft=RightToLeft.No};
-   host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,130));host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,16));host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));host.RowStyles.Add(new RowStyle(SizeType.Percent,100));overviewPage.Controls.Add(host);
-   var controls=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=5,BackColor=Canvas};controls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
-   controls.RowStyles.Add(new RowStyle(SizeType.Percent,50));controls.RowStyles.Add(new RowStyle(SizeType.Absolute,44));controls.RowStyles.Add(new RowStyle(SizeType.Absolute,44));controls.RowStyles.Add(new RowStyle(SizeType.Absolute,44));controls.RowStyles.Add(new RowStyle(SizeType.Percent,50));
+   var host=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Padding=new Padding(0,10,0,0),Margin=new Padding(0),BackColor=Canvas,RightToLeft=RightToLeft.No};
+   host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));host.RowStyles.Add(new RowStyle(SizeType.Percent,100));host.RowStyles.Add(new RowStyle(SizeType.Absolute,12));host.RowStyles.Add(new RowStyle(SizeType.Absolute,44));overviewPage.Controls.Add(host);
+   var hero=new SurfacePanel{Dock=DockStyle.Fill,BackColor=Canvas,Surface=Canvas,BorderColor=Color.FromArgb(150,169,180),Padding=new Padding(8),Margin=new Padding(0)};
+   weight.Text="kg";weight.Font=new Font("Segoe UI",36,FontStyle.Bold);weight.ForeColor=Ink;weight.BackColor=Canvas;weight.TextAlign=ContentAlignment.MiddleCenter;weight.RightToLeft=RightToLeft.No;weight.Dock=DockStyle.Fill;hero.Controls.Add(weight);host.Controls.Add(hero,0,0);
+   var controls=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=5,RowCount=1,Margin=new Padding(0),BackColor=Canvas,RightToLeft=RightToLeft.Yes};
+   controls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f/3));controls.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,12));controls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f/3));controls.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,12));controls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f/3));controls.RowStyles.Add(new RowStyle(SizeType.Percent,100));
    StyleButton(start,"تشغيل",true);StyleButton(stop,"إيقاف",false);stop.Enabled=false;StyleButton(operationIndicator,"متوقف",false);operationIndicator.TabStop=false;operationIndicator.Cursor=Cursors.Default;
-   foreach(var button in new[]{start,stop,operationIndicator}){button.Dock=DockStyle.Fill;button.Margin=new Padding(0,4,0,4);button.RightToLeft=RightToLeft.Yes;}
-   controls.Controls.Add(start,0,1);controls.Controls.Add(stop,0,2);controls.Controls.Add(operationIndicator,0,3);host.Controls.Add(controls,0,0);
-   var hero=new SurfacePanel{Dock=DockStyle.Fill,BackColor=Canvas,Surface=Canvas,BorderColor=Color.FromArgb(150,169,180),Padding=new Padding(16),Margin=new Padding(0)};
-   weight.Text="kg";weight.Font=new Font("Segoe UI",36,FontStyle.Bold);weight.ForeColor=Ink;weight.BackColor=Canvas;weight.TextAlign=ContentAlignment.MiddleCenter;weight.RightToLeft=RightToLeft.No;weight.Dock=DockStyle.Fill;hero.Controls.Add(weight);host.Controls.Add(hero,2,0);
+   foreach(var button in new[]{start,stop,operationIndicator}){button.Dock=DockStyle.Fill;button.Margin=new Padding(0);button.RightToLeft=RightToLeft.Yes;}
+   controls.Controls.Add(start,0,0);controls.Controls.Add(stop,2,0);controls.Controls.Add(operationIndicator,4,0);host.Controls.Add(controls,0,2);
    serialState.Text="الميزان: متوقف";httpState.Text="الإرسال: متوقف";
   }
   void BuildSettings(){
