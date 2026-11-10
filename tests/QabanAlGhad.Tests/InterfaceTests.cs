@@ -13,7 +13,7 @@ namespace WeighbridgeBridge {
   static void Set(MainForm form,string name,object value){typeof(MainForm).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).SetValue(form,value);}
   static void Call(MainForm form,string name,params object[] args){typeof(MainForm).GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(form,args);}
   static IEnumerable<Control> All(Control root){foreach(Control child in root.Controls){yield return child;foreach(var nested in All(child))yield return nested;}}
-  static void Capture(MainForm form,string name){using(var bitmap=new Bitmap(form.ClientSize.Width,form.ClientSize.Height)){form.DrawToBitmap(bitmap,new Rectangle(Point.Empty,form.ClientSize));bitmap.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,name));}}
+  static void Capture(MainForm form,string name){using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(Point.Empty,form.Size));bitmap.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,name));}}
   public static void Rules(){
    Check(OperationStatus.Active(true,1000,1000,3000,1000),"new reading and body write active");
    Check(!OperationStatus.Active(false,1000,1000,3000,1000),"stopped red");
