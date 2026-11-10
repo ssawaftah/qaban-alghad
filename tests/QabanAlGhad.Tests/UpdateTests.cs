@@ -121,6 +121,7 @@ namespace WeighbridgeBridge
                 string output = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 foreach (int scenario in new[] { 0, 1, 2 })
                 {
+                    Console.WriteLine("Windows update scenario: " + scenario);
                     bool fail = scenario == 1;
                     string root = Path.Combine(Path.GetTempPath(), "qaban-updater-lifecycle-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
                     try
@@ -138,7 +139,9 @@ namespace WeighbridgeBridge
                         UpdateTransaction.Prepare(root, stage);
                         using (var process = Process.Start(new ProcessStartInfo(runner, "--install \"" + root + "\" 2147483647") { UseShellExecute = false }))
                         {
-                            if (!process.WaitForExit(45000)) { process.Kill(); throw new Exception("Updater did not finish."); }
+                            if (!process.WaitForExit(45000)) { process.Kill(); process.WaitForExit(); throw new Exception("Updater did not finish, scenario " + scenario); }
+                            string diagnostic = Path.Combine(root, "update-error.log");
+                            if (File.Exists(diagnostic)) Console.WriteLine(File.ReadAllText(diagnostic));
                             Check(process.ExitCode == (fail ? 1 : 0), "real updater exit");
                         }
                         Check(!File.Exists(UpdateTransaction.JournalPath(root)), "real updater journal complete");
@@ -154,7 +157,16 @@ namespace WeighbridgeBridge
                             }
                         }
                     }
-                    finally { Directory.Delete(root, true); }
+                    finally
+                    {
+                        CloseTestApp(root);
+                        for (int attempt = 0; ; attempt++)
+                        {
+                            try { Directory.Delete(root, true); break; }
+                            catch (IOException) { if (attempt == 10) throw; System.Threading.Thread.Sleep(200); }
+                            catch (UnauthorizedAccessException) { if (attempt == 10) throw; System.Threading.Thread.Sleep(200); }
+                        }
+                    }
                 }
                 Console.WriteLine("PASS: Windows updater real-process install and rollback"); return 0;
             }

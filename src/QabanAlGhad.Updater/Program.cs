@@ -77,7 +77,16 @@ internal static class UpdaterProgram
         {
             // If copying began, keep the journal/backups so next startup enters recovery.
             try { if (app != null) File.WriteAllText(Path.Combine(app, "update-error.log"), DateTime.UtcNow.ToString("o") + " " + ex); } catch { }
-            MessageBox.Show("لم يكتمل التحديث. احتُفظ بملفات الاستعادة.\n" + ex.Message, "قبان الغد");
+            try
+            {
+                if (journal != null && (journal.State == "copying" || journal.State == "launched"))
+                {
+                    UpdateTransaction.Restore(app, journal);
+                    Process.Start(Path.Combine(app, "QabanAlGhad.exe"));
+                }
+                else if (journal != null && journal.State == "prepared") File.Delete(UpdateTransaction.JournalPath(app));
+            }
+            catch (Exception recoveryError) { try { File.AppendAllText(Path.Combine(app, "update-error.log"), Environment.NewLine + recoveryError); } catch { } }
             return 1;
         }
     }
