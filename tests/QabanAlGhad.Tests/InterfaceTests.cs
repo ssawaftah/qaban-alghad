@@ -18,7 +18,8 @@ namespace WeighbridgeBridge {
    Check(OperationStatus.Active(true,1000,1000,3000,1000),"new reading and body write active");
    Check(!OperationStatus.Active(false,1000,1000,3000,1000),"stopped red");
    Check(!OperationStatus.Active(true,1000,1000,3000,-1),"no write red");
-   Check(!OperationStatus.Active(true,5000,5000,3000,1000),"old write red");
+   Check(!OperationStatus.Active(true,7000,7000,3000,1000),"old write red");
+   Check(OperationStatus.Active(true,4500,4500,3000,1000),"no flicker while previous request times out");
    Check(!OperationStatus.Active(true,5000,1000,3000,5000),"old reading red");
    var feedback=new TransferFeedback();feedback.BodyWritten();feedback.Reply(500,false,false,true);
    Check(OperationStatus.Active(true,1000,1000,3000,1000),"server reply does not determine local indicator");
@@ -52,11 +53,15 @@ namespace WeighbridgeBridge {
       typeof(OutputChannel).GetProperty("LastBodyWritten").GetSetMethod(true).Invoke(Field(form,"primary"),new object[]{now});
       weight.Text="-120 kg";Call(form,"RefreshInterface");Check(status.BackColor.G>status.BackColor.R,"new local write green");Capture(form,"ui-overview.png");
       Set(form,"running",false);Call(form,"RefreshInterface");
-      Call(form,"ShowScreen",Field(form,"settingsPage"),Field(form,"settingsNav"));Capture(form,"ui-settings.png");
+      Call(form,"ShowScreen",Field(form,"settingsPage"),Field(form,"settingsNav"));
+      foreach(var control in All((Control)Field(form,"settingsPage"))){var grid=control as TableLayoutPanel;if(grid==null||grid.ColumnCount!=2)continue;foreach(Control label in grid.Controls){if(!(label is Label))continue;int row=grid.GetRow(label);var input=grid.GetControlFromPosition(1,row);if(input==null)continue;Check(Math.Abs(label.PointToScreen(Point.Empty).Y+label.Height/2-input.PointToScreen(Point.Empty).Y-input.Height/2)<15,"setting labels align with inputs");}}
+      Capture(form,"ui-settings.png");
       Call(form,"ShowScreen",Field(form,"logsPage"),Field(form,"logsNav"));Call(form,"WriteLog","اختبار واجهة محلي دون أوزان إنتاجية");
       Call(form,"RememberReading",now,"ST,GS,-120,kg",true,-120m);Call(form,"FlushReadingLog",now);Call(form,"FlushReadingLog",now+100);
       var readings=(DataGridView)Field(form,"readingGrid");var events=(DataGridView)Field(form,"eventGrid");
-      Check(readings.Rows.Count==1,"one reading per second");Check(events.Rows.Count==1,"separate events list");
+      Check(readings.Rows.Count==1,"one reading per second");
+      Call(form,"FlushReadingLog",now+1000);Check(readings.Rows.Count==1,"no old frame logged as a new arrival");
+      Call(form,"RememberReading",now+1100,"ST,GS,-120,kg",true,-120m);Call(form,"FlushReadingLog",now+1100);Check(readings.Rows.Count==2,"unchanged new arrival logged");Check(events.Rows.Count==1,"separate events list");
       Capture(form,"ui-logs.png");
       Console.WriteLine("PASS: Windows UI layout, settings lock, local status and split logs");
      }catch(Exception ex){failure=ex;}

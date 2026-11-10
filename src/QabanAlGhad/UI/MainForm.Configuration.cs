@@ -25,7 +25,7 @@ namespace WeighbridgeBridge
   static int Clamp(int v,int min,int max){return Math.Max(min,Math.Min(max,v));}
   Settings ReadSettings(){
    var c=new Settings{Port=port.Text.Trim(),Baud=(int)baud.Value,DataBits=(int)bits.Value,Parity=parity.Text,Endpoint=endpoint.Text.Trim(),Company=company.Text.Trim(),Interval=(int)interval.Value,Freshness=(int)fresh.Value,ResponseMarker=marker.Text,ReturnsEndpoint=returnsEndpoint.Text.Trim(),ReturnsEnabled=true,ReturnsTokenProtected=LocalSecrets.Protect(returnsToken.Text),PrimaryTokenProtected=LocalSecrets.Protect(token.Text)};
-   if(!Regex.IsMatch(c.Port,@"^COM\d+$",RegexOptions.IgnoreCase))throw new Exception("أدخلي منفذًا مثل COM6.");
+   if(!Regex.IsMatch(c.Port,@"^COM\d+$",RegexOptions.IgnoreCase))throw new Exception("أدخل منفذًا مثل COM6.");
    if(!Regex.IsMatch(c.Company,@"^\d+$"))throw new Exception("رقم الشركة يجب أن يكون أرقامًا.");
    Uri u;if(!Uri.TryCreate(c.Endpoint,UriKind.Absolute,out u)||u.Scheme!="https"||u.UserInfo!=""||u.Fragment!=""||u.Query!="")throw new Exception("عنوان الإرسال يجب أن يكون HTTPS دون كلمة مرور أو معاملات إضافية.");
    return c;

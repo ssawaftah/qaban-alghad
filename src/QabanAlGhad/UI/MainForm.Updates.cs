@@ -38,7 +38,7 @@ namespace WeighbridgeBridge
             {
                 if (updateCancellation.IsCancellationRequested) return;
                 WriteBackgroundLog("Update check: " + ex.GetType().Name);
-                if (manual) MessageBox.Show("تعذر التحقق من التحديثات. حاولي لاحقًا.", "قبان الغد");
+                if (manual) MessageBox.Show("تعذر التحقق من التحديثات. حاول لاحقًا.", "قبان الغد");
             }
             finally { checkingUpdate = false; if (!IsDisposed) checkUpdate.Enabled = true; }
         }

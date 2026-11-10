@@ -7,12 +7,12 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 namespace WeighbridgeBridge {
  public sealed partial class MainForm {
-  long nextReadingLog=-1,nextInvalidEvent,lastFrameAt=-1;
+  long nextReadingLog=-1,nextInvalidEvent,lastFrameAt=-1,lastLoggedFrameAt=-1;
   string lastFrame="";bool lastFrameValid;decimal lastFrameWeight;
   void RememberReading(long now,string raw,bool valid,decimal value){lastFrameAt=now;lastFrame=Regex.Replace(raw??"",@"[^\x20-\x7e]","?");if(lastFrame.Length>160)lastFrame=lastFrame.Substring(0,160);lastFrameValid=valid;lastFrameWeight=value;}
   void FlushReadingLog(long now){
-   if(now<nextReadingLog||!ReadingPolicy.IsFresh(now,lastFrameAt,settings.Freshness))return;
-   nextReadingLog=now+1000;
+   if(lastFrameAt<=lastLoggedFrameAt||now<nextReadingLog||!ReadingPolicy.IsFresh(now,lastFrameAt,settings.Freshness))return;
+   nextReadingLog=now+1000;lastLoggedFrameAt=lastFrameAt;
    string time=DateTime.Now.ToString("HH:mm:ss"),value=lastFrameValid?lastFrameWeight.ToString(CultureInfo.InvariantCulture):"غير مستقرة";
    AppendGrid(readingGrid,new object[]{time,value,lastFrame},1200,false);
    AppendFile("readings.log",DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")+" | "+value+" | "+lastFrame);

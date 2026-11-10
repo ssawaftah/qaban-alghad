@@ -47,8 +47,9 @@ namespace WeighbridgeBridge
    ConfigureNumber(baud,300,115200);ConfigureNumber(bits,5,8);ConfigureNumber(interval,1000,1000);ConfigureNumber(fresh,1000,30000);
    parity.DropDownStyle=ComboBoxStyle.DropDownList;parity.Items.AddRange(new object[]{"None","Even","Odd","Mark","Space"});parity.DrawMode=DrawMode.OwnerDrawFixed;parity.DrawItem+=(sender,e)=>{e.DrawBackground();string text=e.Index<0?parity.Text:Convert.ToString(parity.Items[e.Index]);using(var brush=new SolidBrush(e.ForeColor))using(var format=new StringFormat{Alignment=StringAlignment.Center,LineAlignment=StringAlignment.Center})e.Graphics.DrawString(text,e.Font,brush,e.Bounds,format);e.DrawFocusRectangle();};
    var serialFields=SettingsCard("الميزان",0);var serverFields=SettingsCard("ربط النظام",1);
-   MinimalField(serialFields,"المنفذ",port);MinimalField(serialFields,"السرعة",baud);MinimalField(serialFields,"بتات البيانات",bits);MinimalField(serialFields,"التكافؤ",parity);MinimalField(serialFields,"مهلة القراءة",fresh);
+   MinimalField(serialFields,"المنفذ",port);MinimalField(serialFields,"السرعة",baud);MinimalField(serialFields,"بتات البيانات",bits);MinimalField(serialFields,"التكافؤ",parity);MinimalField(serialFields,"مهلة القراءة (ms)",fresh);
    MinimalField(serverFields,"عنوان النظام",endpoint);MinimalField(serverFields,"الشركة",company);token.UseSystemPasswordChar=true;MinimalField(serverFields,"رمز API",token);
+   foreach(var grid in new[]{serialFields,serverFields}){grid.RowCount++;grid.RowStyles.Add(new RowStyle(SizeType.Percent,100));}
    StyleButton(save,"حفظ",true);outer.Controls.Add(Centered(save),0,1);
    StyleButton(checkUpdate,"التحقق من التحديثات",false);checkUpdate.Width=190;StyleButton(installUpdate,"تحديث البرنامج",true);installUpdate.Visible=false;outer.Controls.Add(Centered(Buttons(checkUpdate,installUpdate)),0,2);
   }
