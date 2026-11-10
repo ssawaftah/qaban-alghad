@@ -1,0 +1,15 @@
+{
+  "Port": "COM6",
+  "Baud": 9600,
+  "DataBits": 8,
+  "Parity": "None",
+  "Interval": 1000,
+  "Freshness": 3000,
+  "Endpoint": "https://primary.example.test:9083/api/store_weight_scale",
+  "Company": "1",
+  "ResponseMarker": "",
+  "ReturnsEndpoint": "https://qaban-113.pages.dev/api/scale/weight",
+  "ReturnsEnabled": true,
+  "ReturnsTokenProtected": "",
+  "PrimaryTokenProtected": ""
+}

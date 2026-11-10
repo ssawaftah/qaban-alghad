@@ -1,0 +1,16 @@
+{
+  "sourceFiles": 22,
+  "markdownFiles": 14,
+  "checks": {
+    "protocol": 13,
+    "compatibility": 97,
+    "loopbackHTTP": 56,
+    "dualIsolation": 29
+  },
+  "windowsCI": "pending upload",
+  "realDevice": "pending validation of reorganized build",
+  "onlineUpdates": "design only, not implemented",
+  "documentationLinks": "passed",
+  "projectCompilePaths": "passed",
+  "credentials": "no production credentials included"
+}

@@ -1,0 +1,23 @@
+# Build products
+**/bin/
+**/obj/
+out/
+dist/
+*.exe
+*.dll
+*.pdb
+*.user
+.vs/
+# Local settings, diagnostics and private setup must never be committed
+settings.json
+Returns.setup.json
+*.log
+last-error*.txt
+response*.txt
+*.pfx
+*.snk
+*.pem
+*.key
+.env
+.env.*
+!.env.example

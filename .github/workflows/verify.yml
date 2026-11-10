@@ -1,0 +1,29 @@
+name: Verify weighbridge
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native Windows build and checks
+        shell: powershell
+        run: ./scripts/build.ps1
+      - name: Create credential-free package
+        shell: powershell
+        run: ./scripts/package.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QabanAlGhad-Windows
+          path: dist/*.zip
+  http-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official Ubuntu Mono packages
+        run: sudo apt-get update && sudo apt-get install -y mono-devel
+      - name: Run all local protocol and HTTP checks
+        run: bash scripts/test-mono.sh
