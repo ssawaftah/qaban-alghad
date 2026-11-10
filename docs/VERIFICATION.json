@@ -6,12 +6,14 @@
     "compatibility": 97,
     "loopbackHTTP": 56,
     "dualIsolation": 29,
-    "updates": 17
+    "updates": 17,
+    "operationAndPassword": 8
   },
-  "windowsCI": "passed run 42856932172: native build, installation, rollback, WinForms readiness",
+  "windowsCI": "passed 42874385421: build, UI physical layout, settings gate, split logs, update/rollback",
   "realDevice": "original serial behavior unchanged; company device verification after installation remains user-side",
-  "onlineUpdates": "passed live public GitHub upgrade 0.10.0 -> 0.10.1 on Windows",
+  "onlineUpdates": "passed Windows public upgrade from 0.10.0 to 0.11.1",
   "documentationLinks": "passed",
   "projectCompilePaths": "passed",
-  "credentials": "no production credentials included"
+  "credentials": "no production credentials included",
+  "uiReview": "native screenshots inspected; settings row alignment corrected"
 }
