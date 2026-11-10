@@ -44,4 +44,11 @@
     <None Include="App.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Compile Include="UI\MainForm.Updates.cs" />
+    <Compile Include="Infrastructure\Updates\ReleaseClient.cs" />
+    <Compile Include="Infrastructure\Updates\UpdateTransaction.cs" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
 </Project>

@@ -6,8 +6,14 @@ namespace WeighbridgeBridge
     internal static class Program
     {
         [System.STAThread]
-        private static int Main()
+        private static int Main(string[] args)
         {
+            string app = Application.StartupPath;
+            bool pending = System.IO.File.Exists(UpdateTransaction.JournalPath(app));
+            bool updated;
+            try { updated = UpdateTransaction.Startup(app, args); }
+            catch (System.Exception ex) { MessageBox.Show("تعذر استعادة التحديث.\n" + ex.Message); return 1; }
+            if (pending && !updated) return 0;
             bool first;
             using (var gate = new Mutex(true, "WeighbridgeBridge.SingleInstance", out first))
             {
@@ -18,7 +24,9 @@ namespace WeighbridgeBridge
                 }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new MainForm());
+                var form = new MainForm();
+                form.Shown += (s, e) => { if (updated) UpdateTransaction.Ready(app); };
+                Application.Run(form);
                 return 0;
             }
         }

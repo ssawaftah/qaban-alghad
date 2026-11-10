@@ -35,6 +35,7 @@ namespace WeighbridgeBridge
    settings=LoadSettings();
    try{if(Bootstrap.Import(Application.StartupPath,Path.Combine(dataDir,"settings.json"),settings))WriteBackgroundLog("تم تجهيز الربط.");}catch(Exception ex){WriteBackgroundLog("تعذر استيراد الربط: "+ex.GetType().Name);}
    Apply(settings);
+   BindUpdates();
    start.Click+=(s,e)=>StartReading();stop.Click+=(s,e)=>StopReading();
    save.Click+=(s,e)=>{try{var cfg=ReadSettings();Directory.CreateDirectory(dataDir);File.WriteAllText(Path.Combine(dataDir,"settings.json"),new JavaScriptSerializer().Serialize(cfg),Encoding.UTF8);WriteLog("تم حفظ الإعدادات؛ رموز الربط مشفرة لحساب Windows الحالي.");}catch(Exception ex){MessageBox.Show(ex.Message);}};
    poll.Interval=100;poll.Tick+=(s,e)=>{Tick(s,e);RefreshInterface();};poll.Start();FormClosing+=(s,e)=>{StopReading();poll.Stop();};

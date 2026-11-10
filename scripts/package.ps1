@@ -11,6 +11,8 @@ if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item (Join-Path $root 'out\QabanAlGhad.exe') $stage
 Copy-Item (Join-Path $root 'out\QabanAlGhad.exe.config') $stage
+Copy-Item (Join-Path $root 'out\QabanAlGhad.Updater.exe') $stage
+Copy-Item (Join-Path $root 'out\QabanAlGhad.Updater.exe.config') $stage
 Copy-Item (Join-Path $root 'src\QabanAlGhad\Assets\QabanAlGhad.ico') $stage
 Copy-Item (Join-Path $root 'packaging\Start.cmd') $stage
 Copy-Item (Join-Path $root 'docs\USER_GUIDE.md') (Join-Path $stage 'README.md')

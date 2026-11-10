@@ -26,6 +26,10 @@
 | `Assets/` | ICO/PNG/SVG | الأيقونة ومصدرها؛ لا تضع إعدادات هنا |
 | `App.config` | supportedRuntime | تشغيل CLR4 باستهداف .NET Framework 4.5.1 |
 
+## التحديثات
+
+راجع ملفات Infrastructure/Updates وUI/MainForm.Updates.cs ومشروع QabanAlGhad.Updater في [دليل التحديثات](ONLINE_UPDATES.md).
+
 ## مشروع الاختبارات
 
 | الملف | نطاقه |

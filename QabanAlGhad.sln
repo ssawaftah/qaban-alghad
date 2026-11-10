@@ -4,12 +4,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QabanAlGhad", "src\QabanAlG
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QabanAlGhad.Tests", "tests\QabanAlGhad.Tests\QabanAlGhad.Tests.csproj", "{A981E48A-E001-498F-A5BF-B309D1220604}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QabanAlGhad.Updater", "src\QabanAlGhad.Updater\QabanAlGhad.Updater.csproj", "{816BCA21-A58C-4B92-A73D-9555E07F247B}"
+EndProject
 Global
  GlobalSection(SolutionConfigurationPlatforms) = preSolution
   Debug|Any CPU = Debug|Any CPU
   Release|Any CPU = Release|Any CPU
  EndGlobalSection
  GlobalSection(ProjectConfigurationPlatforms) = postSolution
+  {816BCA21-A58C-4B92-A73D-9555E07F247B}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
+  {816BCA21-A58C-4B92-A73D-9555E07F247B}.Debug|Any CPU.Build.0 = Debug|AnyCPU
+  {816BCA21-A58C-4B92-A73D-9555E07F247B}.Release|Any CPU.ActiveCfg = Release|AnyCPU
+  {816BCA21-A58C-4B92-A73D-9555E07F247B}.Release|Any CPU.Build.0 = Release|AnyCPU
+
   {7464E283-202D-416A-8ED0-C52EB1A88C41}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
   {7464E283-202D-416A-8ED0-C52EB1A88C41}.Debug|Any CPU.Build.0 = Debug|AnyCPU
   {7464E283-202D-416A-8ED0-C52EB1A88C41}.Release|Any CPU.ActiveCfg = Release|AnyCPU

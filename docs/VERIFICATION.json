@@ -5,11 +5,12 @@
     "protocol": 13,
     "compatibility": 97,
     "loopbackHTTP": 56,
-    "dualIsolation": 29
+    "dualIsolation": 29,
+    "updates": 17
   },
-  "windowsCI": "passed GitHub Actions run 42853454763 (Windows build/tests/package and HTTP integration)",
+  "windowsCI": "pending native updater verification",
   "realDevice": "pending validation of reorganized build",
-  "onlineUpdates": "design only, not implemented",
+  "onlineUpdates": "implemented, pending native CI",
   "documentationLinks": "passed",
   "projectCompilePaths": "passed",
   "credentials": "no production credentials included"

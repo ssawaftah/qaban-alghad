@@ -8,7 +8,7 @@ $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (!(Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 if (!(Test-Path $csc)) { throw 'Install Microsoft .NET Framework developer tools before building.' }
 New-Item -ItemType Directory -Force $out | Out-Null
-$refs = @('/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Web.Extensions.dll', '/reference:System.Security.dll')
+$refs = @('/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.Web.Extensions.dll', '/reference:System.Security.dll', '/reference:System.IO.Compression.dll', '/reference:System.IO.Compression.FileSystem.dll')
 $app = Join-Path $out 'QabanAlGhad.exe'
 $sources = @(Get-ChildItem $appRoot -Filter *.cs -Recurse | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' } | ForEach-Object { $_.FullName })
 & $csc /nologo /codepage:65001 /warnaserror+ /target:winexe /platform:anycpu "/win32icon:$appRoot\Assets\QabanAlGhad.ico" "/out:$app" @refs @sources
@@ -26,4 +26,19 @@ if (!$SkipTests) {
     & $tests --dual-test
     if ($LASTEXITCODE -ne 0) { throw 'Independent-delivery tests failed.' }
 }
+$updater = Join-Path $out 'QabanAlGhad.Updater.exe'
+$shared = @((Join-Path $appRoot 'Infrastructure\Updates\ReleaseClient.cs'), (Join-Path $appRoot 'Infrastructure\Updates\UpdateTransaction.cs'), (Join-Path $root 'src\QabanAlGhad.Updater\Program.cs'))
+& $csc /nologo /codepage:65001 /warnaserror+ /target:winexe /platform:anycpu "/out:$updater" @refs @shared
+if ($LASTEXITCODE -ne 0) { throw 'Updater compilation failed.' }
+Copy-Item (Join-Path $appRoot 'App.config') "$updater.config" -Force
 Write-Host "Build ready: $app"
+
+$fixture = Join-Path $root 'tests\QabanAlGhad.Tests\Fixtures\UpdateHost.cs'
+& $csc /nologo /target:exe /reference:System.Web.Extensions.dll "/out:$out\UpdateHealthHost.exe" $fixture
+if ($LASTEXITCODE -ne 0) { throw 'Health fixture compilation failed.' }
+& $csc /nologo /target:exe /define:FAILED_HOST /reference:System.Web.Extensions.dll "/out:$out\UpdateFailedHost.exe" $fixture
+if ($LASTEXITCODE -ne 0) { throw 'Failed fixture compilation failed.' }
+if (!$SkipTests) {
+    & $tests --update-lifecycle
+    if ($LASTEXITCODE -ne 0) { throw 'Real Windows update/rollback tests failed.' }
+}
