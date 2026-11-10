@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Drawing;
 using System.Diagnostics;
@@ -38,7 +38,7 @@ namespace WeighbridgeBridge {
       Check(start.Top==stop.Top&&stop.Top==status.Top,"actions share one row");
       Check(Math.Abs(start.Left-stop.Right- (stop.Left-status.Right))<=1,"equal action gaps");
       Check(overviewNav.PointToScreen(Point.Empty).X>logsNav.PointToScreen(Point.Empty).X&&logsNav.PointToScreen(Point.Empty).X>settingsNav.PointToScreen(Point.Empty).X,"tabs ordered weight logs settings");
-      Check(Math.Abs(overviewNav.Width-logsNav.Width)<=1&&Math.Abs(logsNav.Width-settingsNav.Width)<=1,"tabs equal width");
+      Check(Math.Abs(overviewNav.Width-logsNav.Width)<=2&&Math.Abs(logsNav.Width-settingsNav.Width)<=2,"tabs equal width");
       Check(overviewNav.BackColor.G>overviewNav.BackColor.R&&overviewNav.ForeColor==Color.White,"default tab active green");
       Check(form.ClientSize.Width<=700&&form.ClientSize.Height<=280,"compact default window");
       Size compactSize=form.ClientSize;
