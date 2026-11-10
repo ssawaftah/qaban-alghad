@@ -7,7 +7,7 @@
     "loopbackHTTP": 56,
     "dualIsolation": 29
   },
-  "windowsCI": "pending upload",
+  "windowsCI": "passed GitHub Actions run 42853454763 (Windows build/tests/package and HTTP integration)",
   "realDevice": "pending validation of reorganized build",
   "onlineUpdates": "design only, not implemented",
   "documentationLinks": "passed",
