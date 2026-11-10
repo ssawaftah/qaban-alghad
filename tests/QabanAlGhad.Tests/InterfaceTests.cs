@@ -33,6 +33,8 @@ namespace WeighbridgeBridge {
      try{
       var start=(Button)Field(form,"start");var weight=(Label)Field(form,"weight");var status=(Button)Field(form,"operationIndicator");
       Check(weight.PointToScreen(Point.Empty).X>start.PointToScreen(Point.Empty).X,"weight physically right of controls");
+      Check(form.ClientSize.Width<=700&&form.ClientSize.Height<=420,"compact default window");
+      Size compactSize=form.ClientSize;
       Check(weight.Text=="kg","no dash or fabricated zero");
       foreach(var control in All(form))Check(!(control is CheckBox),"no send checkbox");
       Check(status.BackColor.R>status.BackColor.G,"initial state red");
@@ -55,6 +57,7 @@ namespace WeighbridgeBridge {
       Set(form,"running",false);Call(form,"RefreshInterface");
       Call(form,"ShowScreen",Field(form,"settingsPage"),Field(form,"settingsNav"));
       foreach(var control in All((Control)Field(form,"settingsPage"))){var grid=control as TableLayoutPanel;if(grid==null||grid.ColumnCount!=2)continue;foreach(Control label in grid.Controls){if(!(label is Label))continue;int row=grid.GetRow(label);var input=grid.GetControlFromPosition(1,row);if(input==null)continue;Check(Math.Abs(label.PointToScreen(Point.Empty).Y+label.Height/2-input.PointToScreen(Point.Empty).Y-input.Height/2)<15,"setting labels align with inputs");}}
+      Check(form.ClientSize.Width>compactSize.Width&&form.ClientSize.Height>compactSize.Height,"settings expand for readability");
       Capture(form,"ui-settings.png");
       Call(form,"ShowScreen",Field(form,"logsPage"),Field(form,"logsNav"));Call(form,"WriteLog","اختبار واجهة محلي دون أوزان إنتاجية");
       Call(form,"RememberReading",now,"ST,GS,-120,kg",true,-120m);Call(form,"FlushReadingLog",now);Call(form,"FlushReadingLog",now+100);
@@ -63,6 +66,7 @@ namespace WeighbridgeBridge {
       Call(form,"FlushReadingLog",now+1000);Check(readings.Rows.Count==1,"no old frame logged as a new arrival");
       Call(form,"RememberReading",now+1100,"ST,GS,-120,kg",true,-120m);Call(form,"FlushReadingLog",now+1100);Check(readings.Rows.Count==2,"unchanged new arrival logged");Check(events.Rows.Count==1,"separate events list");
       Capture(form,"ui-logs.png");
+      Call(form,"ShowScreen",Field(form,"overviewPage"),Field(form,"overviewNav"));Check(form.ClientSize==compactSize,"return to compact weight view");
       Console.WriteLine("PASS: Windows UI layout, settings lock, local status and split logs");
      }catch(Exception ex){failure=ex;}
      finally{Set(form,"running",false);form.Close();}
