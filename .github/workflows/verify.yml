@@ -16,6 +16,10 @@ jobs:
         with:
           name: QabanAlGhad-Windows
           path: dist/*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QabanAlGhad-TestTools
+          path: out/*
   http-integration:
     runs-on: ubuntu-latest
     steps:
@@ -57,3 +61,26 @@ jobs:
           fi
           gh release upload "$tag" release-package/*.zip --clobber
           gh release edit "$tag" --draft=false --latest
+  online-upgrade:
+    needs: [publish]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: QabanAlGhad-TestTools
+          path: update-test-tools
+      - name: Upgrade previous published package using the live update client
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((Get-Content VERSION -Raw).Trim() -eq '0.10.0') { exit 0 }
+          New-Item -ItemType Directory previous | Out-Null
+          gh release download v0.10.0 --pattern QabanAlGhad-0.10.0.zip --dir previous
+          if ($LASTEXITCODE -ne 0) { throw 'Previous public package download failed.' }
+          Expand-Archive previous/QabanAlGhad-0.10.0.zip previous/runtime
+          $installed = (Resolve-Path previous/runtime/QabanAlGhad-0.10.0).Path
+          & ./update-test-tools/QabanAlGhad.Tests.exe --online-lifecycle $installed
+          if ($LASTEXITCODE -ne 0) { throw 'Live online upgrade failed.' }

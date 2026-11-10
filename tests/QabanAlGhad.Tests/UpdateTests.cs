@@ -62,6 +62,58 @@ namespace WeighbridgeBridge
             Console.WriteLine("PASS: " + count + " update metadata/integrity/extraction/recovery checks");
         }
 
+        static void CloseTestApp(string root)
+        {
+            foreach (var child in Process.GetProcesses())
+            {
+                try
+                {
+                    if (!string.Equals(child.MainModule.FileName, Path.Combine(root, "QabanAlGhad.exe"), StringComparison.OrdinalIgnoreCase)) continue;
+                    child.CloseMainWindow();
+                    if (!child.WaitForExit(10000)) { child.Kill(); child.WaitForExit(); }
+                }
+                catch (System.ComponentModel.Win32Exception) { }
+                catch (InvalidOperationException) { }
+                finally { child.Dispose(); }
+            }
+        }
+
+        public static int OnlineLifecycle(string root)
+        {
+            try
+            {
+                Version previous = AssemblyName.GetAssemblyName(Path.Combine(root, "QabanAlGhad.exe")).Version;
+                var cancellation = System.Threading.CancellationToken.None;
+                var release = ReleaseClient.Check(previous, cancellation).GetAwaiter().GetResult();
+                for (int attempt = 0; release == null && attempt < 5; attempt++)
+                {
+                    System.Threading.Thread.Sleep(3000);
+                    release = ReleaseClient.Check(previous, cancellation).GetAwaiter().GetResult();
+                }
+                if (release == null) throw new Exception("No newer public release available for the online upgrade test.");
+                string stage = UpdateTransaction.NewStage(root), zip = Path.Combine(stage, "package.zip");
+                ReleaseClient.Fetch(release, zip, cancellation).GetAwaiter().GetResult();
+                UpdateTransaction.Extract(zip, stage, release.Version, release.Sha256);
+                File.WriteAllText(Path.Combine(root, "settings.json"), "preserve-test-settings");
+                string runner = Path.Combine(stage, "runner.exe");
+                File.Copy(Path.Combine(root, "QabanAlGhad.Updater.exe"), runner);
+                File.Copy(Path.Combine(root, "QabanAlGhad.Updater.exe.config"), runner + ".config");
+                UpdateTransaction.Prepare(root, stage);
+                using (var process = Process.Start(new ProcessStartInfo(runner, "--install \"" + root + "\" 2147483647") { UseShellExecute = false }))
+                {
+                    if (!process.WaitForExit(45000)) { process.Kill(); throw new Exception("Online update timed out."); }
+                    Check(process.ExitCode == 0, "public release installation succeeded");
+                }
+                Check(AssemblyName.GetAssemblyName(Path.Combine(root, "QabanAlGhad.exe")).Version.ToString(3) == release.Version, "new published binary installed");
+                Check(File.ReadAllText(Path.Combine(root, "settings.json")) == "preserve-test-settings", "online install preserves settings");
+                Check(!File.Exists(UpdateTransaction.JournalPath(root)), "online install health confirmed");
+                Console.WriteLine("PASS: real public GitHub update " + previous + " -> " + release.Version + "; no serial port or production weights used");
+                return 0;
+            }
+            catch (Exception ex) { Console.WriteLine(ex); return 1; }
+            finally { CloseTestApp(root); }
+        }
+
         public static int Lifecycle()
         {
             try

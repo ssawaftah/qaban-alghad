@@ -21,6 +21,7 @@ namespace WeighbridgeBridge
   static int Main(string[] args)
   {
    string mode=args.Length==0?"--all":args[0];
+   if(mode=="--online-lifecycle"&&args.Length==2)return UpdateTests.OnlineLifecycle(args[1]);
    if(mode=="--update-lifecycle")return UpdateTests.Lifecycle();
    if(mode=="--self-test")return Tests();
    if(mode=="--integration-test")return CompatibilityTests.Integration();
