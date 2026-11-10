@@ -8,9 +8,9 @@
     "dualIsolation": 29,
     "updates": 17
   },
-  "windowsCI": "pending native updater verification",
-  "realDevice": "pending validation of reorganized build",
-  "onlineUpdates": "implemented, pending native CI",
+  "windowsCI": "passed run 42856932172: native build, installation, rollback, WinForms readiness",
+  "realDevice": "original serial behavior unchanged; company device verification after installation remains user-side",
+  "onlineUpdates": "passed live public GitHub upgrade 0.10.0 -> 0.10.1 on Windows",
   "documentationLinks": "passed",
   "projectCompilePaths": "passed",
   "credentials": "no production credentials included"
