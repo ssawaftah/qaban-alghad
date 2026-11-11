@@ -11,15 +11,21 @@ namespace WeighbridgeBridge {
   public string MediaType,Body;
  }
  public static class ApiTransport {
-  public static async Task<ApiReply> SendAsync(string endpoint,string json,string bearer,int timeoutMs,Action<HttpWebRequest> onRequest,Action onWritten=null) {
+  public static async Task<ApiReply> SendAsync(string endpoint,string json,string bearer,int timeoutMs,Action<HttpWebRequest> onRequest,Action onWritten=null,bool sendOnly=false) {
    var request=(HttpWebRequest)WebRequest.Create(endpoint);
    request.UserAgent="QabanAlGhad/0.9";request.Method="POST";request.AllowAutoRedirect=false;request.ContentType="application/json";request.Accept="application/json";request.KeepAlive=false;
-   ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;request.ServicePoint.Expect100Continue=true;
+   ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;request.ServicePoint.Expect100Continue=!sendOnly;
+   // Send-only requests must write to the connection before it is closed.
+   if(sendOnly)request.AllowWriteStreamBuffering=false;
    if(!string.IsNullOrWhiteSpace(bearer))request.Headers[HttpRequestHeader.Authorization]="Bearer "+bearer.Trim();
    byte[] bytes=Encoding.UTF8.GetBytes(json);request.ContentLength=bytes.Length;if(onRequest!=null)onRequest(request);
    using(var timeout=new CancellationTokenSource(Math.Max(1,timeoutMs)))using(timeout.Token.Register(()=>request.Abort())) {
     using(var stream=await request.GetRequestStreamAsync())await stream.WriteAsync(bytes,0,bytes.Length);
     if(onWritten!=null)onWritten();
+    if(sendOnly){
+     request.Abort();
+     return null;
+    }
     HttpWebResponse response;
     try{response=(HttpWebResponse)await request.GetResponseAsync();}
     catch(WebException ex){response=ex.Response as HttpWebResponse;if(response==null)throw;}

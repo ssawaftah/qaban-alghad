@@ -12,7 +12,7 @@ namespace WeighbridgeBridge
   public TransferFeedback(){Reset();}
   public void Reset(){Written=false;ServerError=false;SendText="بانتظار الوزن";ServerText="—";}
   public void Begin(){Written=false;if(SendText!="تم الإرسال")SendText="جارٍ الإرسال";}
-  public void BodyWritten(){Written=true;SendText="تم الإرسال";ServerText="بانتظار الرد";ServerError=false;}
+  public void BodyWritten(bool expectsReply=true){Written=true;SendText="تم الإرسال";ServerText=expectsReply?"بانتظار الرد":"—";ServerError=false;}
   public void Reply(int code,bool acknowledged,bool html,bool failure){
    SendText=Written?"تم الإرسال":"لم يُؤكد الإرسال";
    ServerError=code<200||code>=300||html||failure;

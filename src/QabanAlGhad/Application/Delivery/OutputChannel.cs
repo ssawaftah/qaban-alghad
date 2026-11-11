@@ -37,13 +37,23 @@ namespace WeighbridgeBridge {
    Busy=true;Feedback.Begin();HttpWebRequest request=null;
    try{
     string payload=kind==OutputKind.Primary?Protocol.Payload(company,weight):ReturnsPayload(weight,sampledAtUtc);
-    var reply=await ApiTransport.SendAsync(endpoint,payload,bearer,ReadingPolicy.Deadline(clock(),received,freshness),r=>{request=r;active=r;},()=>{if(Ready&&gen==generation){Feedback.BodyWritten();LastBodyWritten=clock();}});
+    bool sendOnly=kind==OutputKind.Primary;
+    var reply=await ApiTransport.SendAsync(endpoint,payload,bearer,
+      ReadingPolicy.Deadline(clock(),received,freshness),
+      r=>{request=r;active=r;},
+      ()=>{
+       if(Ready&&gen==generation){
+        Feedback.BodyWritten(!sendOnly);
+        LastBodyWritten=clock();
+       }
+      },sendOnly);
     if(!Ready||gen!=generation)return;
+    if(sendOnly){Schedule.PeriodicSuccess();return;}
     bool html=ResponseRules.IsHtml(reply.MediaType,reply.Body),failure=ResponseRules.ExplicitFailure(reply.Body);
-    bool accepted=kind==OutputKind.Primary?ResponseRules.KnownSuccess(reply.Body):ReturnsAccepted(reply.Body,weight);
+    bool accepted=ReturnsAccepted(reply.Body,weight);
     Feedback.Reply(reply.StatusCode,accepted,html,failure);
-    if(reply.StatusCode<200||reply.StatusCode>=300||html||failure){if(save!=null)save(reply,kind==OutputKind.Primary?"last-error.txt":"last-error-returns.txt");Schedule.PeriodicFailure(clock(),reply.RetryAfterMilliseconds);if(log!=null){string detail=(reply.Body??"").Replace("\r"," ").Replace("\n"," ");if(detail.Length>1500)detail=detail.Substring(0,1500);log("["+name+"] HTTP "+reply.StatusCode+" | "+detail);}}
-    else{Schedule.PeriodicSuccess();if(!accepted&&save!=null)save(reply,kind==OutputKind.Primary?"response.txt":"response-returns.txt");}
+    if(reply.StatusCode<200||reply.StatusCode>=300||html||failure){if(save!=null)save(reply,"last-error-returns.txt");Schedule.PeriodicFailure(clock(),reply.RetryAfterMilliseconds);if(log!=null){string detail=(reply.Body??"").Replace("\r"," ").Replace("\n"," ");if(detail.Length>1500)detail=detail.Substring(0,1500);log("["+name+"] HTTP "+reply.StatusCode+" | "+detail);}}
+    else{Schedule.PeriodicSuccess();if(!accepted&&save!=null)save(reply,"response-returns.txt");}
    }catch(WebException ex){if(ex.Response!=null)ex.Response.Dispose();if(Ready&&gen==generation){Feedback.NoReply();Schedule.PeriodicFailure(clock(),0);if(log!=null)log("["+name+"] "+ex.Status);}}
    catch(Exception ex){if(Ready&&gen==generation){Feedback.NoReply();Schedule.PeriodicFailure(clock(),0);if(log!=null)log("["+name+"] "+ex.GetType().Name+": "+ex.Message);}}
    finally{if(active==request)active=null;Busy=false;}

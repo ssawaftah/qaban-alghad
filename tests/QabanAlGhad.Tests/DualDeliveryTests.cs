@@ -20,26 +20,38 @@ namespace WeighbridgeBridge {
    async void Serve(TcpClient client){using(client){try{var stream=client.GetStream();var reader=new StreamReader(stream,Encoding.ASCII,false,1024,true);int length=0;bool expect=false,auth=false;string line;
     while((line=await reader.ReadLineAsync())!=null&&line!=""){if(line.StartsWith("Authorization: Bearer ",StringComparison.OrdinalIgnoreCase))auth=true;if(line.StartsWith("Content-Length:",StringComparison.OrdinalIgnoreCase))length=int.Parse(line.Substring(15).Trim());if(line.StartsWith("Expect:",StringComparison.OrdinalIgnoreCase)&&line.IndexOf("100-continue",StringComparison.OrdinalIgnoreCase)>=0)expect=true;}
     if(expect){byte[] interim=Encoding.ASCII.GetBytes("HTTP/1.1 100 Continue\r\n\r\n");await stream.WriteAsync(interim,0,interim.Length);await stream.FlushAsync();}
-    if(length>4096)throw new Exception("Oversized test input");char[] body=new char[length];int count=0,n;while(count<length&&(n=await reader.ReadAsync(body,count,length-count))>0)count+=n;string json=new string(body,0,count);lock(Bodies){Bodies.Add(json);HasBearer.Add(auth);}
-    var response=await handler(json);byte[] bytes=Encoding.UTF8.GetBytes(response.Item2);byte[] head=Encoding.ASCII.GetBytes("HTTP/1.1 "+response.Item1+" Response\r\nContent-Type: application/json\r\nContent-Length: "+bytes.Length+"\r\nConnection: close\r\n\r\n");await stream.WriteAsync(head,0,head.Length);await stream.WriteAsync(bytes,0,bytes.Length);
+    if(length>4096)throw new Exception("Oversized test input");char[] body=new char[length];int count=0,n;while(count<length&&(n=await reader.ReadAsync(body,count,length-count))>0)count+=n;if(count!=length)return;string json=new string(body,0,count);lock(Bodies){Bodies.Add(json);HasBearer.Add(auth);}
+    var response=await handler(json);if(response==null)return;byte[] bytes=Encoding.UTF8.GetBytes(response.Item2);byte[] head=Encoding.ASCII.GetBytes("HTTP/1.1 "+response.Item1+" Response\r\nContent-Type: application/json\r\nContent-Length: "+bytes.Length+"\r\nConnection: close\r\n\r\n");await stream.WriteAsync(head,0,head.Length);await stream.WriteAsync(bytes,0,bytes.Length);
    }catch(IOException){}catch(ObjectDisposedException){}catch(SocketException){}}}
    public void Dispose(){listener.Stop();}
   }
   static async Task Wait(Task task){if(await Task.WhenAny(task,Task.Delay(6000))!=task)throw new Exception("Test timeout");await task;}
   public static int Run(){try{RunAsync().GetAwaiter().GetResult();Console.WriteLine("PASS: "+checks+" dual-output isolation/credential checks");return 0;}catch(Exception ex){Console.WriteLine(ex);return 1;}}
+  static async Task WaitForBodies(MiniServer server,int expected){
+   var deadline=Stopwatch.StartNew();
+   while(deadline.ElapsedMilliseconds<2000){
+    lock(server.Bodies){if(server.Bodies.Count>=expected)return;}
+    await Task.Delay(10);
+   }
+   throw new Exception("Server did not receive the complete expected requests.");
+  }
   static async Task RunAsync(){
    checks=0;long now=0;var gate=new TaskCompletionSource<bool>();bool hold=true;
-   using(var primaryServer=new MiniServer(body=>Task.FromResult(Tuple.Create(200,"{\"success\":\"Weight scale updated successfully\"}"))))
+   var releaseSilentServer=new TaskCompletionSource<bool>();
+   using(var primaryServer=new MiniServer(async body=>{await releaseSilentServer.Task;return null;}))
    using(var returnsServer=new MiniServer(async body=>{if(hold)await gate.Task;var obj=new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string,object>>(body);return Tuple.Create(200,"{\"accepted\":true,\"weightKg\":"+obj["weightKg"]+"}");})){
     var primary=new OutputChannel(OutputKind.Primary,"primary",()=>now,null,null);
     var returns=new OutputChannel(OutputKind.Returns,"returns",()=>now,null,null);
     primary.Configure(primaryServer.Url,"","1",3000,true);returns.Configure(returnsServer.Url,"test-only-not-a-production-key","1",3000,true);
     Check(primary.Ready&&returns.Ready,"two independent valid configurations");
     primary.Pump(now,true,now,DateTime.UtcNow,10);returns.Pump(now,true,now,DateTime.UtcNow,10);
-    await Wait(primary.Pending);Check(primary.Feedback.ServerText=="تم التحديث","primary succeeds while second response held");
+    var send=primary.Pending;
+    Check(await Task.WhenAny(send,Task.Delay(1500))==send,"primary releases slot before any response");
+    await send;await WaitForBodies(primaryServer,1);
+    Check(primary.Feedback.Written&&primary.Feedback.ServerText=="—","primary body written without waiting for either server");
     Check(returns.Busy,"held second request still pending");
-    now=1100;primary.Pump(now,true,now,DateTime.UtcNow,20);returns.Pump(now,true,now,DateTime.UtcNow,20);
-    await Wait(primary.Pending);Check(primaryServer.Bodies.Count==2,"primary sends next frame while returns busy");
+    now=1100;primary.Pump(now,true,now,DateTime.UtcNow,10);returns.Pump(now,true,now,DateTime.UtcNow,20);
+    await Wait(primary.Pending);await WaitForBodies(primaryServer,2);Check(primaryServer.Bodies.Count==2&&primaryServer.Bodies[1]==Protocol.Payload("1",10),"primary resends unchanged weight while both servers withhold replies");
     Check(returnsServer.Bodies.Count==1,"second does not enqueue or overlap");
     hold=false;gate.TrySetResult(true);await Wait(returns.Pending);
     now=2200;returns.Pump(now,true,now,DateTime.UtcNow,30);await Wait(returns.Pending);
@@ -50,8 +62,9 @@ namespace WeighbridgeBridge {
     Check(!returnsServer.Bodies[0].Contains("company_id")&&returnsServer.Bodies[0].Contains("sampledAt"),"returns contract isolated");
     now=3300;returns.Pump(now,true,0,DateTime.UtcNow,40);Check(returnsServer.Bodies.Count==2,"stale sample not sent to returns");
     returns.Configure(returnsServer.Url,"","1",3000,true);Check(!returns.Ready&&returns.ConfigurationError=="رمز API مطلوب","missing second token is explicit");
-    now=4400;primary.Pump(now,true,now,DateTime.UtcNow,50);await Wait(primary.Pending);Check(primaryServer.Bodies.Count==3,"missing second token does not stop primary");
+    now=4400;primary.Pump(now,true,now,DateTime.UtcNow,50);await Wait(primary.Pending);await WaitForBodies(primaryServer,3);Check(primaryServer.Bodies.Count==3,"missing second token does not stop primary");
     returns.Configure("not-a-url","secret","1",3000,true);Check(!returns.Ready,"bad second URL isolated");
+    releaseSilentServer.TrySetResult(true);
     primary.Stop();returns.Stop();Check(!primary.Ready&&!returns.Ready,"stop shuts both channels");
    }
    now=0;
@@ -60,9 +73,10 @@ namespace WeighbridgeBridge {
     var first=new OutputChannel(OutputKind.Primary,"primary",()=>now,null,null);var second=new OutputChannel(OutputKind.Returns,"returns",()=>now,null,null);
     first.Configure(failing.Url,"","1",3000,true);second.Configure(healthy.Url,"local-test-key","1",3000,true);
     first.Pump(0,true,0,DateTime.UtcNow,0);second.Pump(0,true,0,DateTime.UtcNow,0);await Wait(Task.WhenAll(first.Pending,second.Pending));
-    Check(first.Feedback.ServerError&&first.Feedback.ServerText.Contains("500"),"primary HTTP500 is not hidden");
+    Check(first.Feedback.Written,"primary reports written body without interpreting HTTP response");
     Check(second.Feedback.ServerText=="تم التحديث"&&!second.Feedback.ServerError,"returns succeeds despite primary error");
     now=1100;first.Pump(now,true,now,DateTime.UtcNow,0);second.Pump(now,true,now,DateTime.UtcNow,0);await Wait(Task.WhenAll(first.Pending,second.Pending));
+    await WaitForBodies(failing,2);
     Check(healthy.Bodies.Count==2&&failing.Bodies.Count==2,"both resend zero every second independently");
     first.Stop();second.Stop();
    }
