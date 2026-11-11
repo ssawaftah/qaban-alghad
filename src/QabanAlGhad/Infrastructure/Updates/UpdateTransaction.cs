@@ -159,7 +159,11 @@ namespace WeighbridgeBridge
         public static void Ready(string app)
         {
             var journal = Read(app);
-            if (journal != null && journal.State == "launched") File.WriteAllText(Path.Combine(journal.Stage, "ready"), journal.Token);
+            if (journal == null || journal.State != "launched") return;
+            string receipt = Path.Combine(journal.Stage, "ready");
+            string temporaryReceipt = receipt + ".tmp";
+            File.WriteAllText(temporaryReceipt, journal.Token);
+            File.Move(temporaryReceipt, receipt);
         }
     }
 }
