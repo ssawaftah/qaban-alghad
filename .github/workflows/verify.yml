@@ -21,13 +21,19 @@ jobs:
           name: QabanAlGhad-TestTools
           path: out/*
   http-integration:
-    runs-on: ubuntu-latest
+    needs: [windows]
+    runs-on: windows-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - name: Install official Ubuntu Mono packages
-        run: sudo apt-get update && sudo apt-get install -y mono-devel
-      - name: Run all local protocol and HTTP checks
-        run: bash scripts/test-mono.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: QabanAlGhad-TestTools
+          path: test-tools
+      - name: Run HTTP loopback checks against the Windows build
+        shell: powershell
+        run: |
+          & ./test-tools/QabanAlGhad.Tests.exe --integration-test
+          if ($LASTEXITCODE -ne 0) { throw 'HTTP loopback checks failed.' }
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [windows, http-integration]
