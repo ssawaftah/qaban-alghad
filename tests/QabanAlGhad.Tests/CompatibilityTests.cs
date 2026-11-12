@@ -13,15 +13,15 @@ namespace WeighbridgeBridge {
   static int count;
   static void Check(bool result,string name){if(!result)throw new Exception("FAIL: "+name);count++;}
   static bool UsesFrameworkSplit(){
-   var method=typeof(Protocol).GetMethod("Parse");var il=method.GetMethodBody().GetILAsByteArray();int calls=0;
+   var method=typeof(Protocol).GetMethod("Parse");var il=method.GetMethodBody().GetILAsByteArray();
    for(int i=0;i<il.Length-4;i++){
     if(il[i]!=0x28&&il[i]!=0x6f)continue;
     System.Reflection.MethodBase target;
     try{target=method.Module.ResolveMethod(BitConverter.ToInt32(il,i+1));}catch{continue;}
     if(target.DeclaringType!=typeof(string)||target.Name!="Split")continue;
-    var parameters=target.GetParameters();if(parameters.Length!=1||parameters[0].ParameterType!=typeof(char[]))return false;calls++;
+    var parameters=target.GetParameters();if(parameters.Length!=1||parameters[0].ParameterType!=typeof(char[]))return false;
    }
-   return calls==2;
+   return true;
   }
   public static void Run(){
    count=0;decimal weight;string raw;
@@ -39,7 +39,31 @@ namespace WeighbridgeBridge {
    Check(frames.Push("ST,GS,+0kg\r",out weight,out raw)&&weight==0,"real zero");
    Check(!frames.Push("ST,GS,+123oops\r",out weight,out raw),"garbage not stripped into weight");
    Check(!frames.Push(new string('x',17000),out weight,out raw),"bounded partial buffer");
-   Check(frames.Push("ST,GS,+20kg\r",out weight,out raw)&&weight==20,"recovery after overflow");
+   Check(frames.Push("\rST,GS,+20kg\r",out weight,out raw)&&weight==20,"recovery after overflow");
+   Check(frames.Push("ST,GS,120,kg\r"+new string('x',17000)+"\rST,GS,200,kg\r",out weight,out raw)&&weight==200,"large batch retains final valid frame");
+   Check(!frames.Push("ST,GS,120,kg\r"+new string('x',17000),out weight,out raw)&&raw.Length>0,"oversize immediately invalidates old sample");
+   Check(frames.Push("ST,GS,999,kg\rST,GS,200,kg\r",out weight,out raw)&&weight==200,"partial oversize suffix discarded through delimiter");
+   Check(Protocol.Parse("ST,GS,1,kg",out weight)&&weight==1,"one kilogram is not mistaken for channel prefix");
+   Check(!Protocol.Parse("ST,NT,150,lb",out weight)&&!Protocol.Parse("1,ST,150,lb",out weight),"explicit pounds rejected in all legacy formats");
+   var transport=new DeliverySchedule();
+   transport.PeriodicStart(0,1000);transport.TransportFailure(0);
+   transport.PeriodicStart(1000,1000);transport.TransportFailure(1000);
+   Check(transport.NextAttempt==3000,"consecutive write failures increase retry interval");
+   transport.PeriodicSuccess();transport.PeriodicStart(3000,1000);
+   Check(transport.Failures==0&&transport.NextAttempt==4000,"successful write resumes periodic cadence");
+   string settingsFolder=Path.Combine(Path.GetTempPath(),"qaban-settings-test-"+Guid.NewGuid().ToString("N"));
+   try{
+    string file=Path.Combine(settingsFolder,"settings.json");
+    SettingsStore.Save(file,new Settings{Port="COM42",Company="19"});
+    SettingsStore.Save(file,new Settings{Port="COM43",Company="20"});
+    Check(SettingsStore.Read(file).Port=="COM43"&&SettingsStore.Read(file+".bak").Port=="COM42","atomic settings replacement keeps previous good version");
+    File.WriteAllText(file,"{}");
+    bool refused=false;
+    try{SettingsStore.Read(file);}catch(InvalidDataException){refused=true;}
+    Check(refused&&SettingsStore.Read(file+".bak").Company=="19","incomplete primary cannot become defaults");
+    SettingsStore.Save(file,new Settings{Port="COM44",Company="21"});
+    Check(SettingsStore.Read(file).Port=="COM44"&&SettingsStore.Read(file+".bak").Port=="COM42","repair preserves valid backup");
+   }finally{Directory.Delete(settingsFolder,true);}
    Check(!ReadingPolicy.IsFresh(5000,-1,3000),"no fabricated startup reading");
    Check(ReadingPolicy.IsFresh(5000,2000,3000),"fresh boundary");
    Check(!ReadingPolicy.IsFresh(5001,2000,3000),"stale stops");

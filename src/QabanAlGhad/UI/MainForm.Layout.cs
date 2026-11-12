@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Diagnostics;
 using System.Drawing;
@@ -53,7 +53,6 @@ namespace WeighbridgeBridge
    StyleButton(start,"تشغيل",true);StyleButton(stop,"إيقاف",false);stop.Enabled=false;StyleButton(operationIndicator,"متوقف",false);operationIndicator.TabStop=false;operationIndicator.Cursor=Cursors.Default;
    foreach(var button in new[]{start,stop,operationIndicator}){button.Dock=DockStyle.Fill;button.Margin=new Padding(0);button.RightToLeft=RightToLeft.Yes;}
    controls.Controls.Add(start,0,0);controls.Controls.Add(stop,2,0);controls.Controls.Add(operationIndicator,4,0);host.Controls.Add(controls,0,2);
-   serialState.Text="الميزان: متوقف";httpState.Text="الإرسال: متوقف";
   }
   void BuildSettings(){
    var outer=new TableLayoutPanel{Dock=DockStyle.Top,Height=510,ColumnCount=1,RowCount=3,BackColor=Canvas,Padding=new Padding(8,20,8,0)};outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,355));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,60));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,60));settingsPage.Controls.Add(outer);
@@ -64,7 +63,11 @@ namespace WeighbridgeBridge
    MinimalField(serialFields,"المنفذ",port);MinimalField(serialFields,"السرعة",baud);MinimalField(serialFields,"بتات البيانات",bits);MinimalField(serialFields,"التكافؤ",parity);MinimalField(serialFields,"مهلة القراءة (ms)",fresh);
    MinimalField(serverFields,"عنوان النظام",endpoint);MinimalField(serverFields,"الشركة",company);token.UseSystemPasswordChar=true;MinimalField(serverFields,"رمز API",token);
    foreach(var grid in new[]{serialFields,serverFields}){grid.RowCount++;grid.RowStyles.Add(new RowStyle(SizeType.Percent,100));}
-   StyleButton(save,"حفظ",true);outer.Controls.Add(Centered(save),0,1);
+   StyleButton(save,"حفظ",true);
+   var diagnose=new Button();
+   StyleButton(diagnose,"فحص الاتصال",false);
+   diagnose.Click+=async (sender,e)=>await ShowDiagnostics(diagnose);
+   outer.Controls.Add(Centered(Buttons(save,diagnose)),0,1);
    StyleButton(checkUpdate,"التحقق من التحديثات",false);checkUpdate.Width=190;StyleButton(installUpdate,"تحديث البرنامج",true);installUpdate.Visible=false;outer.Controls.Add(Centered(Buttons(checkUpdate,installUpdate)),0,2);
   }
   TableLayoutPanel SettingsCard(string title,int column){
@@ -75,7 +78,8 @@ namespace WeighbridgeBridge
   }
   void MinimalField(TableLayoutPanel grid,string title,Control input){int row=grid.RowCount++;grid.RowStyles.Add(new RowStyle(SizeType.Absolute,47));grid.Controls.Add(CenterLabel(title,9,Muted,Color.White),0,row);input.Dock=DockStyle.Fill;input.Margin=new Padding(0,8,0,8);input.Font=new Font("Segoe UI",10);input.RightToLeft=RightToLeft.No;input.AccessibleName=title;var box=input as TextBox;if(box!=null){box.TextAlign=HorizontalAlignment.Center;box.BorderStyle=BorderStyle.FixedSingle;box.BackColor=Color.White;}var number=input as NumericUpDown;if(number!=null)number.TextAlign=HorizontalAlignment.Center;grid.Controls.Add(input,1,row);}
   void BuildLogs(){
-   var outer=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=5,BackColor=Canvas,Padding=new Padding(8)};outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,30));outer.RowStyles.Add(new RowStyle(SizeType.Percent,45));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,30));outer.RowStyles.Add(new RowStyle(SizeType.Percent,55));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,60));logsPage.Controls.Add(outer);
+   var outer=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=6,BackColor=Canvas,Padding=new Padding(8)};outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,30));outer.RowStyles.Add(new RowStyle(SizeType.Percent,45));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,30));outer.RowStyles.Add(new RowStyle(SizeType.Percent,55));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,60));outer.RowStyles.Add(new RowStyle(SizeType.Absolute,28));logsPage.Controls.Add(outer);
+   logTimes.Dock=DockStyle.Fill;logTimes.TextAlign=ContentAlignment.MiddleCenter;outer.Controls.Add(logTimes,0,5);
    outer.Controls.Add(CenterLabel("القراءات",11,Ink,Canvas),0,0);ConfigureLogGrid(readingGrid);readingGrid.Columns.Add("time","الوقت");readingGrid.Columns.Add("weight","الوزن kg");readingGrid.Columns.Add("frame","الإطار");readingGrid.Columns[2].AutoSizeMode=DataGridViewAutoSizeColumnMode.Fill;outer.Controls.Add(readingGrid,0,1);
    outer.Controls.Add(CenterLabel("الأحداث والأعطال",11,Ink,Canvas),0,2);ConfigureLogGrid(eventGrid);eventGrid.Columns.Add("time","الوقت");eventGrid.Columns.Add("type","الحدث");eventGrid.Columns.Add("detail","التفاصيل");eventGrid.Columns[2].AutoSizeMode=DataGridViewAutoSizeColumnMode.Fill;outer.Controls.Add(eventGrid,0,3);
    var open=new Button();var copy=new Button();StyleButton(open,"فتح السجل",false);StyleButton(copy,"نسخ التفاصيل",false);outer.Controls.Add(Centered(Buttons(open,copy)),0,4);open.Click+=(sender,e)=>{try{Directory.CreateDirectory(dataDir);Process.Start("explorer.exe","\""+dataDir+"\"");}catch(Exception ex){MessageBox.Show(ex.Message);}};
@@ -83,8 +87,10 @@ namespace WeighbridgeBridge
   }
   void ConfigureLogGrid(DataGridView grid){grid.Dock=DockStyle.Fill;grid.ReadOnly=true;grid.AllowUserToAddRows=false;grid.AllowUserToDeleteRows=false;grid.AllowUserToResizeRows=false;grid.RowHeadersVisible=false;grid.SelectionMode=DataGridViewSelectionMode.FullRowSelect;grid.MultiSelect=true;grid.BackgroundColor=Color.White;grid.BorderStyle=BorderStyle.None;grid.GridColor=Color.FromArgb(231,237,241);grid.DefaultCellStyle.Alignment=DataGridViewContentAlignment.MiddleCenter;grid.ColumnHeadersDefaultCellStyle.Alignment=DataGridViewContentAlignment.MiddleCenter;grid.DefaultCellStyle.ForeColor=Ink;grid.DefaultCellStyle.SelectionBackColor=Color.FromArgb(221,239,236);grid.DefaultCellStyle.SelectionForeColor=Ink;grid.RowTemplate.Height=30;grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill;grid.ClipboardCopyMode=DataGridViewClipboardCopyMode.EnableAlwaysIncludeHeaderText;grid.Enter+=(sender,e)=>activeLogGrid=grid;}
   void RefreshInterface(){
-   bool active=settings!=null&&OperationStatus.Active(running,clock.ElapsedMilliseconds,received,settings.Freshness,primary.LastBodyWritten);
-   operationIndicator.Text=active?"يعمل ويرسل":running?"بانتظار الإرسال":"متوقف";operationIndicator.BackColor=active?Color.FromArgb(30,144,86):Color.FromArgb(186,58,64);operationIndicator.ForeColor=Color.White;operationIndicator.FlatAppearance.MouseOverBackColor=operationIndicator.BackColor;operationIndicator.FlatAppearance.MouseDownBackColor=operationIndicator.BackColor;
+   bool active=settings!=null&&!primary.WriteFailed&&OperationStatus.Active(running,clock.ElapsedMilliseconds,received,settings.Freshness,primary.LastBodyWritten);
+   bool current=settings!=null&&ReadingPolicy.IsFresh(clock.ElapsedMilliseconds,received,settings.Freshness);
+   operationIndicator.Text=active?"يعمل ويرسل":running?(current&&primary.WriteFailed?"تعذر الإرسال":readingState):settingsNeedRepair?"راجع الإعدادات":"متوقف";
+   if(logsPage.Visible)logTimes.Text="آخر قراءة "+DisplayTime(lastReadingLocal)+"   |   آخر إرسال "+DisplayTime(primary.LastWriteLocal);operationIndicator.BackColor=active?Color.FromArgb(30,144,86):Color.FromArgb(186,58,64);operationIndicator.ForeColor=Color.White;operationIndicator.FlatAppearance.MouseOverBackColor=operationIndicator.BackColor;operationIndicator.FlatAppearance.MouseDownBackColor=operationIndicator.BackColor;
   }
  }
 }

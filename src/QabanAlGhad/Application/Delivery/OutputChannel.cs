@@ -10,6 +10,11 @@ namespace WeighbridgeBridge {
   public readonly DeliverySchedule Schedule=new DeliverySchedule();
   public bool Busy {get;private set;}
   public long LastBodyWritten {get;private set;}
+  public bool WriteFailed {get;private set;}
+  public DateTime? LastWriteLocal {get;private set;}
+  public string LastTransportIssue {get;private set;}
+  long nextTransportLog,nextResponseLog;
+  int suppressedFailures;
   public bool Ready {get;private set;}
   public string ConfigurationError {get;private set;}
   public Task Pending {get;private set;}
@@ -18,14 +23,14 @@ namespace WeighbridgeBridge {
   HttpWebRequest active;int generation;string endpoint,bearer,company;int freshness;
   public OutputChannel(OutputKind kind,string name,Func<long> clock,Action<string> log,Action<ApiReply,string> save){this.kind=kind;this.name=name;this.clock=clock;this.log=log;this.save=save;Pending=Task.FromResult(0);LastBodyWritten=-1;}
   public void Configure(string url,string token,string companyId,int freshnessMs,bool allowLoopback=false){
-   Stop();Feedback.Reset();Schedule.Reset();Ready=false;ConfigurationError=null;
+   Stop();Feedback.Reset();nextTransportLog=0;nextResponseLog=0;suppressedFailures=0;LastWriteLocal=null;LastTransportIssue=null;Schedule.Reset();Ready=false;ConfigurationError=null;
    Uri uri;
    if(!Uri.TryCreate(url,UriKind.Absolute,out uri)||uri.UserInfo!=""||uri.Fragment!=""||uri.Query!=""||
       (uri.Scheme!="https"&&!(allowLoopback&&uri.Scheme=="http"&&uri.Host=="127.0.0.1"))){ConfigurationError="عنوان غير صالح";return;}
    if(kind==OutputKind.Returns&&string.IsNullOrWhiteSpace(token)){ConfigurationError="رمز API مطلوب";return;}
    endpoint=url;bearer=token;company=companyId;freshness=freshnessMs;Ready=true;
   }
-  public void Stop(){LastBodyWritten=-1;generation++;Ready=false;if(active!=null){try{active.Abort();}catch{ }}active=null;}
+  public void Stop(){WriteFailed=false;LastBodyWritten=-1;generation++;Ready=false;if(active!=null){try{active.Abort();}catch{ }}active=null;}
   public void Pump(long now,bool enabled,long received,DateTime sampledAtUtc,decimal weight){
    bool recent=ReadingPolicy.IsFresh(now,received,freshness);
    if(!Ready||!Schedule.CanSend(now,true,enabled,recent,Busy))return;
@@ -45,6 +50,11 @@ namespace WeighbridgeBridge {
        if(Ready&&gen==generation){
         Feedback.BodyWritten(!sendOnly);
         LastBodyWritten=clock();
+        LastWriteLocal=DateTime.Now;
+        WriteFailed=false;
+        LastTransportIssue=null;
+        nextTransportLog=0;
+        suppressedFailures=0;
        }
       },sendOnly);
     if(!Ready||gen!=generation)return;
@@ -52,11 +62,34 @@ namespace WeighbridgeBridge {
     bool html=ResponseRules.IsHtml(reply.MediaType,reply.Body),failure=ResponseRules.ExplicitFailure(reply.Body);
     bool accepted=ReturnsAccepted(reply.Body,weight);
     Feedback.Reply(reply.StatusCode,accepted,html,failure);
-    if(reply.StatusCode<200||reply.StatusCode>=300||html||failure){if(save!=null)save(reply,"last-error-returns.txt");Schedule.PeriodicFailure(clock(),reply.RetryAfterMilliseconds);if(log!=null){string detail=(reply.Body??"").Replace("\r"," ").Replace("\n"," ");if(detail.Length>1500)detail=detail.Substring(0,1500);log("["+name+"] HTTP "+reply.StatusCode+" | "+detail);}}
-    else{Schedule.PeriodicSuccess();if(!accepted&&save!=null)save(reply,"response-returns.txt");}
-   }catch(WebException ex){if(ex.Response!=null)ex.Response.Dispose();if(Ready&&gen==generation){Feedback.NoReply();Schedule.PeriodicFailure(clock(),0);if(log!=null)log("["+name+"] "+ex.Status);}}
-   catch(Exception ex){if(Ready&&gen==generation){Feedback.NoReply();Schedule.PeriodicFailure(clock(),0);if(log!=null)log("["+name+"] "+ex.GetType().Name+": "+ex.Message);}}
+    if(Feedback.ServerError||!accepted){
+     long now=clock();
+     Schedule.PeriodicFailure(now,reply.RetryAfterMilliseconds);
+     if(now>=nextResponseLog){
+      nextResponseLog=now+30000;
+      if(save!=null)save(reply,Feedback.ServerError?"last-error-returns.txt":"response-returns.txt");
+      if(log!=null)log("["+name+"] "+Feedback.ServerText);
+     }
+    }else{
+     Schedule.PeriodicSuccess();
+     nextResponseLog=0;
+    }
+   }catch(WebException ex){if(ex.Response!=null)ex.Response.Dispose();if(Ready&&gen==generation){TransportFailed(ex.Status.ToString());}}
+   catch(Exception ex){if(Ready&&gen==generation){TransportFailed(ex.GetType().Name);}}
    finally{if(active==request)active=null;Busy=false;}
+  }
+  void TransportFailed(string issue){
+   Feedback.NoReply();
+   WriteFailed=!Feedback.Written;
+   LastTransportIssue=issue;
+   long now=clock();
+   if(WriteFailed)Schedule.TransportFailure(now);
+   else Schedule.PeriodicFailure(now,0);
+   if(now<nextTransportLog){suppressedFailures++;return;}
+   if(log!=null)log("["+name+"] "+(WriteFailed?"تعذر الإرسال: ":"تعذر قراءة الرد: ")+issue+
+       (suppressedFailures==0?"":" | تكرار "+suppressedFailures));
+   suppressedFailures=0;
+   nextTransportLog=now+30000;
   }
  }
 }
