@@ -75,7 +75,7 @@ namespace WeighbridgeBridge
                                BackColor = Color.Transparent,
                                AutoSize = false,
                                Dock = DockStyle.Fill,
-                               TextAlign = ContentAlignment.MiddleRight,
+                               TextAlign = ContentAlignment.MiddleLeft,
                                RightToLeft = RightToLeft.Yes,
                                Margin = new Padding(0),
                                AutoEllipsis = true };
@@ -134,6 +134,10 @@ namespace WeighbridgeBridge
             Invalidate();
             base.OnMouseUp(e);
         }
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent == null ? UiTheme.Canvas : Parent.BackColor);
+        }
         protected override void OnEnabledChanged(EventArgs e)
         {
             Invalidate();
@@ -167,6 +171,10 @@ namespace WeighbridgeBridge
 
     public sealed class StatusBadge : Label
     {
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent == null ? UiTheme.Canvas : Parent.BackColor);
+        }
         protected override void OnPaint(PaintEventArgs e)
         {
             if (Width < 3 || Height < 3)
@@ -238,6 +246,10 @@ namespace WeighbridgeBridge
 {
     public sealed class ProgressMeter : ProgressBar
     {
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent == null ? UiTheme.Canvas : Parent.BackColor);
+        }
         public ProgressMeter()
         {
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer,

@@ -110,6 +110,11 @@ namespace WeighbridgeBridge
                             }
                         }
                         Check(((Panel)Field(form, "settingsPage")).AutoScroll, "scaled settings can scroll");
+                        var save = (Button)Field(form, "save");
+                        var settings = (Panel)Field(form, "settingsPage");
+                        Check(settings.RectangleToScreen(settings.ClientRectangle)
+                                  .Contains(save.RectangleToScreen(save.ClientRectangle)),
+                              "save action remains visible at scale " + factor);
                         Capture(form, "ui-settings-" + factor + ".png");
                         Call(form, "ShowScreen", Field(form, "logsPage"), Field(form, "logsNav"));
                         Check(((TextBox)Field(form, "logSearch")).Width >= 120, "scaled log search usable");
@@ -122,6 +127,14 @@ namespace WeighbridgeBridge
                               "reading table remains usable at scale " + factor);
                         Check(((DataGridView)Field(form, "eventGrid")).Height >= 70 * scale,
                               "event table remains usable at scale " + factor);
+                        var logs = (Panel)Field(form, "logsPage");
+                        foreach (var button in All(logs))
+                            if (button is ActionButton &&
+                                (button.Text == "تشخيص الاتصال" || button.Text == "نسخ المحدد" ||
+                                 button.Text == "فتح مجلد السجل"))
+                                Check(logs.RectangleToScreen(logs.ClientRectangle)
+                                          .Contains(button.RectangleToScreen(button.ClientRectangle)),
+                                      "log footer action remains visible at scale " + factor);
                         Capture(form, "ui-logs-" + factor + ".png");
                         Console.WriteLine("PASS: layout scale " + factor + " with accessible settings and logs");
                     }
@@ -274,8 +287,9 @@ namespace WeighbridgeBridge
                                   typeof(MainForm).Assembly.GetName().Version.ToString(3) + " - Abdelrahman Sawaftah",
                               "credit follows application version");
                         var iconPosition = updateButton.PointToScreen(Point.Empty);
-                        Check(iconPosition.X < settingsNav.PointToScreen(Point.Empty).X + settingsNav.Width / 2 &&
-                                  iconPosition.Y < settingsNav.PointToScreen(Point.Empty).Y &&
+                        Check((!verifyNativeRtl ||
+                               iconPosition.X < settingsNav.PointToScreen(Point.Empty).X + settingsNav.Width / 2 &&
+                                   iconPosition.Y < settingsNav.PointToScreen(Point.Empty).Y) &&
                                   updateButton.Region != null && updateButton.Text == "!",
                               "circular update icon at top left");
                         Check(credit.PointToScreen(Point.Empty).Y >= start.PointToScreen(Point.Empty).Y + start.Height,

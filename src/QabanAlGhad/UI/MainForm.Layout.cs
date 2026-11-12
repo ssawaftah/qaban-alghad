@@ -20,6 +20,7 @@ namespace WeighbridgeBridge
         float pageScale = 1;
         DataGridView readingGrid = new LogGrid(), eventGrid = new LogGrid(), activeLogGrid;
         TableLayoutPanel settingsOuter;
+        readonly Panel settingsViewport = new Panel(), logsViewport = new Panel();
         SurfacePanel serialCard, serverCard;
 
         Label CenterLabel(string text, float size, Color color, Color background)
@@ -89,10 +90,12 @@ namespace WeighbridgeBridge
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
+            header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             var mark = new BrandMark { Dock = DockStyle.Fill, Margin = new Padding(0, 5, 0, 5) };
             header.Controls.Add(mark, 0, 0);
             var identity = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
                                                   Margin = new Padding(10, 0, 10, 0) };
+            identity.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             identity.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
             identity.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
             identity.Controls.Add(UiTheme.Label("قبان الغد", UiTheme.Heading), 0, 0);
@@ -288,12 +291,15 @@ namespace WeighbridgeBridge
         {
             settingsOuter =
                 new TableLayoutPanel { Dock = DockStyle.Top,   Height = 550,       ColumnCount = 1,
-                                       RowCount = 2,           BackColor = Canvas, Padding = new Padding(0, 16, 0, 0),
+                                       RowCount = 1,           BackColor = Canvas, Padding = new Padding(0, 16, 0, 0),
                                        Margin = new Padding(0) };
             settingsOuter.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             settingsOuter.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            settingsOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
-            settingsPage.Controls.Add(settingsOuter);
+            settingsViewport.Dock = DockStyle.Fill;
+            settingsViewport.AutoScroll = true;
+            settingsViewport.BackColor = Canvas;
+            settingsViewport.Controls.Add(settingsOuter);
+            settingsPage.Controls.Add(settingsViewport);
             fields.Dock = DockStyle.Fill;
             fields.BackColor = Canvas;
             fields.ColumnCount = 2;
@@ -344,15 +350,18 @@ namespace WeighbridgeBridge
             var diagnose = new ActionButton();
             StyleButton(diagnose, "تشخيص الاتصال", false);
             diagnose.Click += async (sender, e) => await ShowDiagnostics(diagnose);
-            settingsOuter.Controls.Add(Centered(Buttons(save, diagnose)), 0, 1);
+            var settingsActions = Centered(Buttons(save, diagnose));
+            settingsActions.Dock = DockStyle.Bottom;
+            settingsActions.Height = 64;
+            settingsPage.Controls.Add(settingsActions);
             settingsPage.SizeChanged += (sender, e) => ArrangeSettings();
+            settingsViewport.SizeChanged += (sender, e) => ArrangeSettings();
             FontChanged += (sender, e) => ArrangeSettings();
         }
         TableLayoutPanel SettingsCard(string title, int column)
         {
             var card = new SurfacePanel { Dock = DockStyle.Fill, Surface = Color.White, BorderColor = UiTheme.Border,
-                                          Padding = new Padding(20, 12, 20, 16),
-                                          Margin = new Padding(column == 0 ? 6 : 0, 0, column == 0 ? 0 : 6, 8) };
+                                          Padding = new Padding(20, 12, 20, 16), Margin = new Padding(6, 0, 6, 8) };
             if (column == 0)
                 serialCard = card;
             else
@@ -442,8 +451,7 @@ namespace WeighbridgeBridge
             }
             else
                 fields.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            settingsOuter.RowStyles[1].Height = 64 * scale;
-            settingsOuter.Height = (stacked ? sh + rh : sh) + (int)(80 * scale);
+            settingsOuter.Height = (stacked ? sh + rh : sh) + (int)(16 * scale);
             fields.ResumeLayout();
         }
         void EditEndpoint()
@@ -486,18 +494,20 @@ namespace WeighbridgeBridge
         void BuildLogs()
         {
             var outer = new TableLayoutPanel {
-                Dock = DockStyle.Top, Height = 580,       MinimumSize = new Size(0, 580),     ColumnCount = 1,
-                RowCount = 5,         BackColor = Canvas, Padding = new Padding(0, 16, 0, 0), Margin = new Padding(0)
+                Dock = DockStyle.Top, Height = 440,       MinimumSize = new Size(0, 440),     ColumnCount = 1,
+                RowCount = 3,         BackColor = Canvas, Padding = new Padding(0, 16, 0, 0), Margin = new Padding(0)
             };
-            logsPage.SizeChanged += (sender, e) => outer.Height =
-                Math.Max(outer.MinimumSize.Height, logsPage.ClientSize.Height);
+            logsViewport.SizeChanged += (sender, e) => outer.Height =
+                Math.Max(outer.MinimumSize.Height, logsViewport.ClientSize.Height);
             outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             outer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
-            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
-            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-            logsPage.Controls.Add(outer);
+            logsViewport.Dock = DockStyle.Fill;
+            logsViewport.AutoScroll = true;
+            logsViewport.BackColor = Canvas;
+            logsViewport.Controls.Add(outer);
+            logsPage.Controls.Add(logsViewport);
             var tools = new FlowLayoutPanel { Dock = DockStyle.Fill,
                                               AutoSize = true,
                                               AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -512,7 +522,7 @@ namespace WeighbridgeBridge
             tools.Controls.Add(searchTitle);
             logSearch.Font = UiTheme.Body;
             logSearch.Width = 220;
-            logSearch.BorderStyle = BorderStyle.FixedSingle;
+            logSearch.BorderStyle = BorderStyle.None;
             logSearch.AccessibleName = "البحث في السجلات";
             logSearch.Margin = new Padding(6, 8, 6, 6);
             logSearch.RightToLeft = RightToLeft.Yes;
@@ -538,8 +548,20 @@ namespace WeighbridgeBridge
             };
             logSearch.TextChanged += (sender, e) => FilterLogs();
             logFilter.SelectedIndexChanged += (sender, e) => FilterLogs();
-            tools.Controls.Add(logSearch);
-            tools.Controls.Add(logFilter);
+            var searchBox = new InputSurface { Size = new Size(220, 40), Margin = new Padding(6, 2, 6, 6) };
+            searchBox.Controls.Add(logSearch);
+            searchBox.Layout += (sender, e) =>
+                logSearch.SetBounds(12, (searchBox.ClientSize.Height - logSearch.Height) / 2,
+                                    Math.Max(1, searchBox.ClientSize.Width - 24), logSearch.Height);
+            logSearch.Enter += (sender, e) => searchBox.Invalidate();
+            logSearch.Leave += (sender, e) => searchBox.Invalidate();
+            var filterBox = new InputSurface { Size = new Size(174, 40), Margin = new Padding(6, 2, 6, 6) };
+            filterBox.Controls.Add(logFilter);
+            filterBox.Layout += (sender, e) =>
+                logFilter.SetBounds(8, (filterBox.ClientSize.Height - logFilter.Height) / 2,
+                                    Math.Max(1, filterBox.ClientSize.Width - 16), logFilter.Height);
+            tools.Controls.Add(searchBox);
+            tools.Controls.Add(filterBox);
             tools.Controls.Add(follow);
             outer.Controls.Add(tools, 0, 0);
             ConfigureLogGrid(readingGrid);
@@ -575,6 +597,7 @@ namespace WeighbridgeBridge
             StyleButton(open, "فتح مجلد السجل", false);
             StyleButton(copy, "نسخ المحدد", false);
             StyleButton(diagnose, "تشخيص الاتصال", true);
+            open.Width = copy.Width = diagnose.Width = 136;
             open.Click += (sender, e) =>
             {
                 try
@@ -603,12 +626,18 @@ namespace WeighbridgeBridge
                 }
             };
             diagnose.Click += async (sender, e) => await ShowDiagnostics(diagnose);
-            outer.Controls.Add(Centered(Buttons(diagnose, copy, open)), 0, 3);
+            var footer = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 88, ColumnCount = 1, RowCount = 2,
+                                                BackColor = Canvas };
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+            footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            footer.Controls.Add(Centered(Buttons(diagnose, copy, open)), 0, 0);
+            logsPage.Controls.Add(footer);
             logTimes.Dock = DockStyle.Fill;
             logTimes.Font = UiTheme.Small;
             logTimes.ForeColor = Muted;
             logTimes.TextAlign = ContentAlignment.MiddleCenter;
-            outer.Controls.Add(logTimes, 0, 4);
+            footer.Controls.Add(logTimes, 0, 1);
         }
         Control LogCard(string title, DataGridView grid)
         {

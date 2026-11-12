@@ -55,7 +55,7 @@ namespace WeighbridgeBridge
                                                                TextFormatFlags.WordBreak | TextFormatFlags.RightToLeft)
                                                   .Height +
                                               8);
-            text.TextAlign = ContentAlignment.TopRight;
+            text.TextAlign = ContentAlignment.TopLeft;
             text.AutoEllipsis = false;
             text.AccessibleName = message;
             scroll.Controls.Add(text);
