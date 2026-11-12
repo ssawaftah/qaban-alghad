@@ -38,7 +38,75 @@ namespace WeighbridgeBridge
             c.Dock = DockStyle.Fill;
             fields.Controls.Add(c, 1, r);
         }
-        bool settingsNeedRepair;
+        bool settingsNeedRepair, settingsDirty, applyingSettings, primaryCredentialUnavailable;
+        readonly ErrorProvider fieldErrors = new ErrorProvider();
+        readonly ToolTip helpTips = new ToolTip();
+
+        void BindSettingsChanges()
+        {
+            fieldErrors.ContainerControl = this;
+            foreach (Control input in new Control[] { port, endpoint, company, token, baud, bits, parity, fresh })
+            {
+                input.TextChanged += (sender, e) =>
+                {
+                    if (!applyingSettings)
+                    {
+                        settingsDirty = true;
+                        save.Text = "حفظ وتطبيق *";
+                        fieldErrors.SetError((Control)sender, "");
+                    }
+                };
+            }
+        }
+        bool ResolveUnsavedSettings()
+        {
+            if (!settingsDirty)
+                return true;
+            var answer =
+                MessageBox.Show(this, "توجد تغييرات غير محفوظة. حفظ وتطبيق الآن؟\nاختر لا لتجاهلها، أو إلغاء للبقاء.",
+                                "الإعدادات", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (answer == DialogResult.Cancel)
+                return false;
+            if (answer == DialogResult.Yes)
+                return SaveSettings();
+            Apply(settings);
+            return true;
+        }
+        bool SaveSettings()
+        {
+            try
+            {
+                fieldErrors.Clear();
+                var cfg = ReadSettings();
+                SettingsStore.Save(SettingsPath, cfg);
+                settingsNeedRepair = false;
+                settings = cfg;
+                Apply(cfg);
+                WriteLog("تم حفظ الإعدادات وتطبيقها؛ رموز الربط مشفرة لحساب Windows الحالي.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "تعذر حفظ الإعدادات");
+                return false;
+            }
+        }
+        void RefreshPorts()
+        {
+            string selected = port.Text;
+            try
+            {
+                var names = SerialPort.GetPortNames();
+                Array.Sort(names, StringComparer.OrdinalIgnoreCase);
+                port.Items.Clear();
+                port.Items.AddRange(names);
+                port.Text = selected;
+            }
+            catch (Exception)
+            {
+                helpTips.SetToolTip(port, "تعذر تعداد المنافذ. يمكن إدخال اسم المنفذ يدويًا.");
+            }
+        }
         string SettingsPath
         {
             get {
@@ -89,20 +157,39 @@ namespace WeighbridgeBridge
         }
         void Apply(Settings c)
         {
-            port.Text = c.Port;
-            endpoint.Text = c.Endpoint;
-            company.Text = c.Company;
-            marker.Text = c.ResponseMarker;
-            baud.Value = Clamp(c.Baud, 300, 115200);
-            bits.Value = Clamp(c.DataBits, 5, 8);
-            interval.Value = 1000;
-            fresh.Value = Clamp(c.Freshness, 1000, 30000);
-            returnsEndpoint.Text = c.ReturnsEndpoint;
-            returnsToken.Text = LocalSecrets.Unprotect(c.ReturnsTokenProtected);
-            token.Text = LocalSecrets.Unprotect(c.PrimaryTokenProtected);
-            parity.SelectedItem = c.Parity;
-            if (parity.SelectedIndex < 0)
-                parity.SelectedIndex = 0;
+            applyingSettings = true;
+            try
+            {
+                port.Text = c.Port;
+                endpoint.Text = c.Endpoint;
+                company.Text = c.Company;
+                marker.Text = c.ResponseMarker;
+                baud.Value = Clamp(c.Baud, 300, 115200);
+                bits.Value = Clamp(c.DataBits, 5, 8);
+                interval.Value = 1000;
+                fresh.Value = Clamp(c.Freshness, 1000, 30000);
+                returnsEndpoint.Text = c.ReturnsEndpoint;
+                string plain;
+                bool secondAvailable = LocalSecrets.TryUnprotect(c.ReturnsTokenProtected, out plain);
+                returnsToken.Text = plain;
+                primaryCredentialUnavailable = !LocalSecrets.TryUnprotect(c.PrimaryTokenProtected, out plain);
+                token.Text = plain;
+                fieldErrors.SetError(token,
+                                     primaryCredentialUnavailable
+                                         ? "تعذر فتح الرمز المحفوظ. أعد إدخاله؛ ستُحفظ قيمته الأصلية حتى استبداله."
+                                         : "");
+                if (!secondAvailable)
+                    WriteBackgroundLog("تعذر فتح رمز القناة الثانية. تم الاحتفاظ بالقيمة المشفرة الأصلية.");
+                parity.SelectedItem = c.Parity;
+                if (parity.SelectedIndex < 0)
+                    parity.SelectedIndex = 0;
+                settingsDirty = false;
+                save.Text = "حفظ وتطبيق";
+            }
+            finally
+            {
+                applyingSettings = false;
+            }
         }
         static int Clamp(int v, int min, int max)
         {
@@ -121,9 +208,24 @@ namespace WeighbridgeBridge
                                    ResponseMarker = marker.Text,
                                    ReturnsEndpoint = returnsEndpoint.Text.Trim(),
                                    ReturnsEnabled = true,
-                                   ReturnsTokenProtected = LocalSecrets.Protect(returnsToken.Text),
-                                   PrimaryTokenProtected = LocalSecrets.Protect(token.Text) };
-            SettingsStore.Validate(c);
+                                   ReturnsTokenProtected = LocalSecrets.UpdateProtected(
+                                       settings == null ? "" : settings.ReturnsTokenProtected, returnsToken.Text),
+                                   PrimaryTokenProtected = LocalSecrets.UpdateProtected(
+                                       settings == null ? "" : settings.PrimaryTokenProtected, token.Text) };
+            try
+            {
+                SettingsStore.Validate(c);
+            }
+            catch (InvalidDataException ex)
+            {
+                Control target = !Regex.IsMatch(c.Port, @"^COM[0-9]+$", RegexOptions.IgnoreCase) ? (Control)port
+                                 : !Regex.IsMatch(c.Company, @"^[0-9]+$")                        ? company
+                                 : ex.Message.Contains("HTTPS")                                  ? endpoint
+                                                                                                 : (Control)parity;
+                fieldErrors.SetError(target, ex.Message);
+                target.Focus();
+                throw;
+            }
             return c;
         }
     }

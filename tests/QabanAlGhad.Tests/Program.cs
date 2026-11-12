@@ -45,6 +45,7 @@ namespace WeighbridgeBridge
                 CompatibilityTests.Run();
                 UpdateTests.Run();
                 InterfaceTests.Rules();
+                RegressionTests.Run();
                 return 0;
             }
             catch (Exception ex)
@@ -61,6 +62,10 @@ namespace WeighbridgeBridge
                 return UpdateTests.OnlineLifecycle(args[1]);
             if (mode == "--update-lifecycle")
                 return UpdateTests.Lifecycle();
+            if (mode == "--ui-scale-test" && args.Length == 2)
+                return InterfaceTests.ScaleWindows(args[1]);
+            if (mode == "--ui-behavior")
+                return InterfaceTests.Windows(false);
             if (mode == "--ui-test")
                 return InterfaceTests.Windows();
             if (mode == "--self-test")

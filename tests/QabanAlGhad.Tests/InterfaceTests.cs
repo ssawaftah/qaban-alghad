@@ -41,7 +41,11 @@ namespace WeighbridgeBridge
         {
             using (var bitmap = new Bitmap(form.Width, form.Height))
             {
-                form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
+                else
+                    using (var graphics = Graphics.FromImage(bitmap))
+                        graphics.CopyFromScreen(form.Location, Point.Empty, form.Size);
                 bitmap.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, name));
             }
         }
@@ -63,10 +67,63 @@ namespace WeighbridgeBridge
                   "password rejects invalid values");
             Console.WriteLine("PASS: " + count + " local operation/password rules");
         }
-        public static int Windows()
+        public static int ScaleWindows(string factor)
+        {
+            float scale = float.Parse(factor, System.Globalization.CultureInfo.InvariantCulture);
+            if (scale < 1 || scale > 2)
+                return 2;
+            Exception failure = null;
+            string profile = Path.Combine(Path.GetTempPath(), "qaban-scale-" + Guid.NewGuid().ToString("N"));
+            using (var form = new MainForm(profile))
+            {
+                form.Shown += (sender, e) =>
+                {
+                    try
+                    {
+                        form.Scale(new SizeF(scale, scale));
+                        Set(form, "compactClient", form.ClientSize);
+                        Set(form, "pageScale", form.ClientSize.Width / 640f);
+                        Call(form, "ShowScreen", Field(form, "settingsPage"), Field(form, "settingsNav"));
+                        foreach (string name in new[] { "port", "baud", "bits", "parity", "fresh", "endpoint",
+                                                        "company", "token" })
+                        {
+                            var control = (Control)Field(form, name);
+                            Check(control.Width >= 40 && control.Height >= 20, "scaled input usable: " + name);
+                            Check(!string.IsNullOrWhiteSpace(control.AccessibleName),
+                                  "scaled input accessible: " + name);
+                        }
+                        Check(((Panel)Field(form, "settingsPage")).AutoScroll, "scaled settings can scroll");
+                        Capture(form, "ui-settings-" + factor + ".png");
+                        Call(form, "ShowScreen", Field(form, "logsPage"), Field(form, "logsNav"));
+                        Check(((TextBox)Field(form, "logSearch")).Width >= 120, "scaled log search usable");
+                        Capture(form, "ui-logs-" + factor + ".png");
+                        Console.WriteLine("PASS: layout scale " + factor + " with accessible settings and logs");
+                    }
+                    catch (Exception ex)
+                    {
+                        failure = ex;
+                    }
+                    finally
+                    {
+                        form.Close();
+                    }
+                };
+                Application.Run(form);
+            }
+            if (Directory.Exists(profile))
+                Directory.Delete(profile, true);
+            if (failure != null)
+            {
+                Console.WriteLine(failure);
+                return 1;
+            }
+            return 0;
+        }
+        public static int Windows(bool verifyNativeRtl = true)
         {
             Exception failure = null;
-            using (var form = new MainForm())
+            string profile = Path.Combine(Path.GetTempPath(), "qaban-ui-" + Guid.NewGuid().ToString("N"));
+            using (var form = new MainForm(profile))
             {
                 form.Shown += (sender, e) =>
                 {
@@ -74,20 +131,23 @@ namespace WeighbridgeBridge
                     {
                         var start = (Button)Field(form, "start");
                         var weight = (Label)Field(form, "weight");
-                        var status = (Button)Field(form, "operationIndicator");
+                        var status = (Label)Field(form, "operationIndicator");
                         var stop = (Button)Field(form, "stop");
                         var overviewNav = (Button)Field(form, "overviewNav");
                         var logsNav = (Button)Field(form, "logsNav");
                         var settingsNav = (Button)Field(form, "settingsNav");
                         Check(weight.PointToScreen(Point.Empty).Y + weight.Height < start.PointToScreen(Point.Empty).Y,
                               "weight above action row");
-                        Check(start.PointToScreen(Point.Empty).X > stop.PointToScreen(Point.Empty).X &&
-                                  stop.PointToScreen(Point.Empty).X > status.PointToScreen(Point.Empty).X,
+                        Check(!verifyNativeRtl ||
+                                  start.PointToScreen(Point.Empty).X > stop.PointToScreen(Point.Empty).X &&
+                                      stop.PointToScreen(Point.Empty).X > status.PointToScreen(Point.Empty).X,
                               "actions ordered right to left");
                         Check(start.Top == stop.Top && stop.Top == status.Top, "actions share one row");
-                        Check(Math.Abs(start.Left - stop.Right - (stop.Left - status.Right)) <= 1, "equal action gaps");
-                        Check(overviewNav.PointToScreen(Point.Empty).X > logsNav.PointToScreen(Point.Empty).X &&
-                                  logsNav.PointToScreen(Point.Empty).X > settingsNav.PointToScreen(Point.Empty).X,
+                        Check(!verifyNativeRtl || Math.Abs(start.Left - stop.Right - (stop.Left - status.Right)) <= 1,
+                              "equal action gaps");
+                        Check(!verifyNativeRtl ||
+                                  overviewNav.PointToScreen(Point.Empty).X > logsNav.PointToScreen(Point.Empty).X &&
+                                      logsNav.PointToScreen(Point.Empty).X > settingsNav.PointToScreen(Point.Empty).X,
                               "tabs ordered weight logs settings");
                         Check(Math.Abs(overviewNav.Width - logsNav.Width) <= 2 &&
                                   Math.Abs(logsNav.Width - settingsNav.Width) <= 2,
@@ -128,9 +188,37 @@ namespace WeighbridgeBridge
                         Check(informationOpened, "icon opens version and update dialog");
                         Size compactSize = form.ClientSize;
                         Check(weight.Text == "kg", "no dash or fabricated zero");
+                        Check(status.AccessibleRole == AccessibleRole.StaticText && !status.TabStop,
+                              "status is a noninteractive accessible label");
+                        var serialPort = (ComboBox)Field(form, "port");
+                        Check(serialPort.DropDownStyle == ComboBoxStyle.DropDown, "COM list supports manual entry");
+                        var brokenSettings = new Settings { PrimaryTokenProtected = "broken-primary",
+                                                            ReturnsTokenProtected = "broken-returns" };
+                        Set(form, "settings", brokenSettings);
+                        Call(form, "Apply", brokenSettings);
+                        var roundtrip = (Settings) typeof(MainForm)
+                                            .GetMethod("ReadSettings", BindingFlags.Instance | BindingFlags.NonPublic)
+                                            .Invoke(form, null);
+                        Check(roundtrip.PrimaryTokenProtected == "broken-primary" &&
+                                  roundtrip.ReturnsTokenProtected == "broken-returns",
+                              "UI preserves inaccessible credentials");
+                        Check((bool)Field(form, "primaryCredentialUnavailable"),
+                              "UI records primary decryption failure");
+                        var apiToken = (TextBox)Field(form, "token");
+                        apiToken.Text = "replacement-test-only";
+                        Check((bool)Field(form, "settingsDirty"), "editing settings marks unsaved changes");
+                        Call(form, "SaveSettings");
+                        Check(!(bool)Field(form, "settingsDirty") && !(bool)Field(form, "primaryCredentialUnavailable"),
+                              "save clears dirty state and repairs primary credential");
+                        Check(SettingsStore.Read(Path.Combine(profile, "settings.json")).ReturnsTokenProtected ==
+                                  "broken-returns",
+                              "saving unrelated fields preserves inaccessible hidden credential");
+                        var defaults = new Settings();
+                        Set(form, "settings", defaults);
+                        Call(form, "Apply", defaults);
                         foreach (var control in All(form))
                             Check(!(control is CheckBox), "no send checkbox");
-                        Check(status.BackColor.R > status.BackColor.G, "initial state red");
+                        Check(status.BackColor.B > status.BackColor.R, "initial stopped state neutral");
                         bool asked = false;
                         Exception gateFailure = null;
                         using (var timer = new System.Windows.Forms.Timer { Interval = 100 })
@@ -218,12 +306,33 @@ namespace WeighbridgeBridge
                         Call(form, "RememberReading", now + 1100, "ST,GS,-120,kg", true, -120m);
                         Call(form, "FlushReadingLog", now + 1100);
                         Check(readings.Rows.Count == 2, "unchanged new arrival logged");
-                        Check(events.Rows.Count == 1, "separate events list");
+                        Check(events.Rows.Count >= 1, "separate events list");
+                        Check(readings.RightToLeft == RightToLeft.No &&
+                                  Convert.ToString(readings.Rows[0].Cells[1].Value) == "-120",
+                              "negative weights use LTR display and retain clipboard value");
+                        ((TextBox)Field(form, "logSearch")).Text = "no-such-local-event";
+                        Check(!readings.Rows[0].Visible, "search filters reading rows");
+                        ((TextBox)Field(form, "logSearch")).Clear();
+                        Check(readings.Rows[0].Visible, "clearing search restores reading rows");
+                        Call(form, "WriteLog", "تعذر اختبار محلي");
+                        ((ComboBox)Field(form, "logFilter")).SelectedIndex = 1;
+                        Check(events.Rows[events.Rows.Count - 1].Visible, "error filter retains failures");
+                        ((ComboBox)Field(form, "logFilter")).SelectedIndex = 0;
+                        DateTime arrival = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+                        Call(form, "RememberSample", now + 2200, arrival, "ST,GS,12,lb", false, 0m);
+                        Call(form, "FlushReadingLog", now + 2200);
+                        var rejected = readings.Rows[readings.Rows.Count - 1];
+                        Check(Convert.ToString(rejected.Cells[1].Value) == "وحدة غير مدعومة",
+                              "reading log classifies unsupported units");
+                        Check(Convert.ToString(rejected.Cells[0].Value) == arrival.ToLocalTime().ToString("HH:mm:ss"),
+                              "reading log uses arrival timestamp");
                         Check(updateButton.Visible && credit.Visible, "update header visible in logs");
                         Capture(form, "ui-logs.png");
                         Call(form, "ShowScreen", Field(form, "overviewPage"), Field(form, "overviewNav"));
                         Check(form.ClientSize == compactSize, "return to compact weight view");
-                        Console.WriteLine("PASS: Windows UI layout, settings lock, local status and split logs");
+                        Console.WriteLine(verifyNativeRtl
+                                              ? "PASS: Windows UI layout, settings lock, local status and split logs"
+                                              : "PASS: UI behavior checks; native RTL geometry requires Windows");
                     }
                     catch (Exception ex)
                     {
@@ -237,6 +346,8 @@ namespace WeighbridgeBridge
                 };
                 Application.Run(form);
             }
+            if (Directory.Exists(profile))
+                Directory.Delete(profile, true);
             if (failure != null)
             {
                 Console.WriteLine(failure);

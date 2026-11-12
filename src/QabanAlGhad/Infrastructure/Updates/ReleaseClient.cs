@@ -79,7 +79,7 @@ namespace WeighbridgeBridge
         }
 
         static async Task Download(string address, string path, long limit, int timeoutMs,
-                                   CancellationToken cancellation)
+                                   CancellationToken cancellation, IProgress<int> progress = null)
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation))
@@ -120,6 +120,8 @@ namespace WeighbridgeBridge
                                 if (total > limit)
                                     throw new InvalidDataException("Update exceeds size limit.");
                                 await output.WriteAsync(buffer, 0, count, timeout.Token);
+                                if (progress != null)
+                                    progress.Report((int)Math.Min(99, total * 100 / Math.Max(1, limit)));
                             }
                         }
                         return;
@@ -162,13 +164,18 @@ namespace WeighbridgeBridge
                 .ToLowerInvariant();
         }
 
-        public static async Task Fetch(AvailableUpdate update, string file, CancellationToken cancellation)
+        public static async Task Fetch(AvailableUpdate update, string file, CancellationToken cancellation,
+                                       IProgress<int> progress = null)
         {
             try
             {
-                await Download(update.Url, file, update.Size, 120000, cancellation);
-                if (new FileInfo(file).Length != update.Size || Hash(file) != update.Sha256)
+                await Download(update.Url, file, update.Size, 120000, cancellation, progress);
+                if (new FileInfo(file).Length != update.Size ||
+                    await Task.Run(() => Hash(file), cancellation) != update.Sha256)
                     throw new InvalidDataException("Update integrity check failed.");
+                cancellation.ThrowIfCancellationRequested();
+                if (progress != null)
+                    progress.Report(100);
             }
             catch
             {

@@ -12,7 +12,10 @@ namespace WeighbridgeBridge
                               Canvas = Color.FromArgb(246, 248, 250), Accent = Color.FromArgb(0, 121, 113);
         Panel screenHost = new Panel(), overviewPage = new Panel(), settingsPage = new Panel(), logsPage = new Panel();
         Button overviewNav = new Button(), settingsNav = new Button(), logsNav = new Button();
-        Button operationIndicator = new Button();
+        Label operationIndicator = new Label();
+        readonly TextBox logSearch = new TextBox();
+        readonly ComboBox logFilter = new ComboBox();
+        bool followLogs = true;
         Size compactClient;
         bool pageSizingReady;
         float pageScale = 1;
@@ -133,7 +136,11 @@ namespace WeighbridgeBridge
             BuildSettings();
             BuildLogs();
             ShowScreen(overviewPage, overviewNav);
-            overviewNav.Click += (s, e) => ShowScreen(overviewPage, overviewNav);
+            overviewNav.Click += (s, e) =>
+            {
+                if (ResolveUnsavedSettings())
+                    ShowScreen(overviewPage, overviewNav);
+            };
             settingsNav.Click += (s, e) =>
             {
                 if (settingsPage.Visible)
@@ -144,7 +151,11 @@ namespace WeighbridgeBridge
                         ShowScreen(settingsPage, settingsNav);
                 }
             };
-            logsNav.Click += (s, e) => ShowScreen(logsPage, logsNav);
+            logsNav.Click += (s, e) =>
+            {
+                if (ResolveUnsavedSettings())
+                    ShowScreen(logsPage, logsNav);
+            };
             Shown += (sender, e) =>
             {
                 compactClient = ClientSize;
@@ -163,7 +174,10 @@ namespace WeighbridgeBridge
             {
                 circle.AddEllipse((updateInfo.Width - diameter) / 2, (updateInfo.Height - diameter) / 2, diameter,
                                   diameter);
+                var previous = updateInfo.Region;
                 updateInfo.Region = new Region(circle);
+                if (previous != null)
+                    previous.Dispose();
             }
         }
         void ShowScreen(Panel page, Button selected)
@@ -235,10 +249,12 @@ namespace WeighbridgeBridge
             StyleButton(start, "تشغيل", true);
             StyleButton(stop, "إيقاف", false);
             stop.Enabled = false;
-            StyleButton(operationIndicator, "متوقف", false);
+            operationIndicator.Text = "متوقف";
+            operationIndicator.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            operationIndicator.TextAlign = ContentAlignment.MiddleCenter;
+            operationIndicator.AccessibleRole = AccessibleRole.StaticText;
             operationIndicator.TabStop = false;
-            operationIndicator.Cursor = Cursors.Default;
-            foreach (var button in new[] { start, stop, operationIndicator })
+            foreach (Control button in new Control[] { start, stop, operationIndicator })
             {
                 button.Dock = DockStyle.Fill;
                 button.Margin = new Padding(0);
@@ -298,9 +314,32 @@ namespace WeighbridgeBridge
                 grid.RowCount++;
                 grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             }
-            StyleButton(save, "حفظ", true);
+            port.DropDownStyle = ComboBoxStyle.DropDown;
+            port.DropDown += (sender, e) => RefreshPorts();
+            helpTips.SetToolTip(port, "افتح القائمة لتحديث المنافذ المتاحة، أو أدخل اسم المنفذ يدويًا.");
+            endpoint.TextAlign = HorizontalAlignment.Left;
+            endpoint.AccessibleDescription = "عنوان HTTPS الكامل للنظام الأساسي";
+            endpoint.DoubleClick += (sender, e) =>
+            {
+                using (var dialog = new Form { Text = "عنوان النظام", Width = 680, Height = 155,
+                                               StartPosition = FormStartPosition.CenterParent, MinimizeBox = false,
+                                               MaximizeBox = false })
+                {
+                    var address = new TextBox { Dock = DockStyle.Top, Text = endpoint.Text,
+                                                RightToLeft = RightToLeft.No, AccessibleName = "عنوان النظام الكامل" };
+                    var accept = new Button { Text = "تطبيق", Dock = DockStyle.Bottom, Height = 36,
+                                              DialogResult = DialogResult.OK, Enabled = !running };
+                    dialog.Controls.Add(address);
+                    dialog.Controls.Add(accept);
+                    dialog.AcceptButton = accept;
+                    if (dialog.ShowDialog(this) == DialogResult.OK)
+                        endpoint.Text = address.Text;
+                }
+            };
+            helpTips.SetToolTip(endpoint, "انقر مرتين لعرض العنوان وتحريره كاملًا.");
+            StyleButton(save, "حفظ وتطبيق", true);
             var diagnose = new Button();
-            StyleButton(diagnose, "فحص الاتصال", false);
+            StyleButton(diagnose, "تشخيص الاتصال", false);
             diagnose.Click += async (sender, e) => await ShowDiagnostics(diagnose);
             outer.Controls.Add(Centered(Buttons(save, diagnose)), 0, 1);
         }
@@ -349,9 +388,10 @@ namespace WeighbridgeBridge
         }
         void BuildLogs()
         {
-            var outer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, BackColor = Canvas,
+            var outer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, BackColor = Canvas,
                                                Padding = new Padding(8) };
             outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
@@ -361,26 +401,58 @@ namespace WeighbridgeBridge
             logsPage.Controls.Add(outer);
             logTimes.Dock = DockStyle.Fill;
             logTimes.TextAlign = ContentAlignment.MiddleCenter;
-            outer.Controls.Add(logTimes, 0, 5);
-            outer.Controls.Add(CenterLabel("القراءات", 11, Ink, Canvas), 0, 0);
+            outer.Controls.Add(logTimes, 0, 6);
+            var tools = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
+                                              WrapContents = false };
+            logSearch.Width = 180;
+            logSearch.AccessibleName = "البحث في السجل";
+            logFilter.Width = 120;
+            logFilter.DropDownStyle = ComboBoxStyle.DropDownList;
+            logFilter.Items.AddRange(new object[] { "كل الأحداث", "الأعطال فقط" });
+            logFilter.SelectedIndex = 0;
+            logFilter.AccessibleName = "تصفية السجل";
+            var follow =
+                new Button { Text = "متابعة: مفعلة", Width = 145, Height = 30, AccessibleName = "تبديل متابعة السجل" };
+            follow.Click += (sender, e) =>
+            {
+                followLogs = !followLogs;
+                follow.Text = followLogs ? "متابعة: مفعلة" : "متابعة: متوقفة";
+            };
+            logSearch.TextChanged += (sender, e) => FilterLogs();
+            logFilter.SelectedIndexChanged += (sender, e) => FilterLogs();
+            tools.Controls.Add(new Label { Text = "بحث", AutoSize = true, Padding = new Padding(0, 5, 0, 0) });
+            tools.Controls.Add(logSearch);
+            tools.Controls.Add(logFilter);
+            tools.Controls.Add(follow);
+            outer.Controls.Add(tools, 0, 0);
+            outer.Controls.Add(CenterLabel("القراءات", 11, Ink, Canvas), 0, 1);
             ConfigureLogGrid(readingGrid);
             readingGrid.Columns.Add("time", "الوقت");
             readingGrid.Columns.Add("weight", "الوزن kg");
             readingGrid.Columns.Add("frame", "الإطار");
             readingGrid.Columns[2].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            outer.Controls.Add(readingGrid, 0, 1);
-            outer.Controls.Add(CenterLabel("الأحداث والأعطال", 11, Ink, Canvas), 0, 2);
+            readingGrid.RightToLeft = RightToLeft.No;
+            readingGrid.Columns[0].DisplayIndex = 2;
+            readingGrid.Columns[1].DisplayIndex = 1;
+            readingGrid.Columns[2].DisplayIndex = 0;
+            readingGrid.AccessibleName = "سجل القراءات";
+            outer.Controls.Add(readingGrid, 0, 2);
+            outer.Controls.Add(CenterLabel("الأحداث والأعطال", 11, Ink, Canvas), 0, 3);
             ConfigureLogGrid(eventGrid);
             eventGrid.Columns.Add("time", "الوقت");
             eventGrid.Columns.Add("type", "الحدث");
             eventGrid.Columns.Add("detail", "التفاصيل");
             eventGrid.Columns[2].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-            outer.Controls.Add(eventGrid, 0, 3);
+            eventGrid.AccessibleName = "سجل الأحداث والأعطال";
+            outer.Controls.Add(eventGrid, 0, 4);
             var open = new Button();
             var copy = new Button();
             StyleButton(open, "فتح السجل", false);
             StyleButton(copy, "نسخ التفاصيل", false);
-            outer.Controls.Add(Centered(Buttons(open, copy)), 0, 4);
+            var diagnostics = new Button();
+            StyleButton(diagnostics, "تشخيص الاتصال", false);
+            diagnostics.Click += async (sender, e) => await ShowDiagnostics(diagnostics);
+            outer.Controls.Add(Centered(Buttons(open, copy, diagnostics)), 0, 5);
             open.Click += (sender, e) =>
             {
                 try
@@ -434,6 +506,8 @@ namespace WeighbridgeBridge
         }
         void RefreshInterface()
         {
+            if (!running && !closingInProgress)
+                start.Enabled = serialSession != null && serialSession.Completion.IsCompleted;
             bool active = settings != null && !primary.WriteFailed &&
                           OperationStatus.Active(running, clock.ElapsedMilliseconds, received, settings.Freshness,
                                                  primary.LastBodyWritten);
@@ -446,10 +520,21 @@ namespace WeighbridgeBridge
             if (logsPage.Visible)
                 logTimes.Text = "آخر قراءة " + DisplayTime(lastReadingLocal) + "   |   آخر إرسال " +
                                 DisplayTime(primary.LastWriteLocal);
-            operationIndicator.BackColor = active ? Color.FromArgb(30, 144, 86) : Color.FromArgb(186, 58, 64);
+            bool fault =
+                updateInstallFailed || settingsNeedRepair || primaryCredentialUnavailable ||
+                (running && (primary.WriteFailed || readingState == "انقطع المنفذ" || readingState == "لا تصل قراءة" ||
+                             readingState == "قراءة غير صالحة" || readingState == "وحدة غير مدعومة" ||
+                             readingState == "إطار أطول من الحد المسموح"));
+            if (updateInstallFailed && !running)
+                operationIndicator.Text = "متوقف بعد فشل التحديث";
+            if (primaryCredentialUnavailable && !running)
+                operationIndicator.Text = "راجع رمز النظام";
+            operationIndicator.BackColor = active    ? Color.FromArgb(30, 144, 86)
+                                           : fault   ? Color.FromArgb(186, 58, 64)
+                                           : running ? Color.FromArgb(150, 100, 0)
+                                                     : Color.FromArgb(100, 112, 124);
             operationIndicator.ForeColor = Color.White;
-            operationIndicator.FlatAppearance.MouseOverBackColor = operationIndicator.BackColor;
-            operationIndicator.FlatAppearance.MouseDownBackColor = operationIndicator.BackColor;
+            operationIndicator.AccessibleName = "حالة القبان: " + operationIndicator.Text;
         }
     }
 }

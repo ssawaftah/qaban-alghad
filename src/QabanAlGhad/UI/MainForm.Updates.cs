@@ -29,6 +29,9 @@ namespace WeighbridgeBridge
         readonly Button updateInfo = new UpdateInfoButton(), checkUpdate = new Button();
         Form updateWindow;
         Label updateVersion;
+        ProgressBar updateProgress;
+        Task updatePreparation = Task.FromResult(0);
+        bool updateInstallFailed;
         Label versionCredit;
         static readonly Version CurrentVersion = Assembly.GetExecutingAssembly().GetName().Version;
         readonly CancellationTokenSource updateCancellation = new CancellationTokenSource();
@@ -50,7 +53,6 @@ namespace WeighbridgeBridge
                 else
                     await InstallUpdate();
             };
-            FormClosing += (s, e) => updateCancellation.Cancel();
         }
 
         void ShowUpdateInformation()
@@ -58,7 +60,7 @@ namespace WeighbridgeBridge
             if (updateWindow == null)
             {
                 updateWindow = new Form { Text = "معلومات الإصدار والتحديث",
-                                          ClientSize = new Size(355, 154),
+                                          ClientSize = new Size(390, 192),
                                           StartPosition = FormStartPosition.CenterParent,
                                           FormBorderStyle = FormBorderStyle.FixedDialog,
                                           AutoScaleMode = AutoScaleMode.Font,
@@ -69,12 +71,13 @@ namespace WeighbridgeBridge
                                           ShowInTaskbar = false,
                                           MaximizeBox = false,
                                           MinimizeBox = false };
-                var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4,
+                var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5,
                                                      Padding = new Padding(12, 10, 12, 8) };
                 content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
                 content.RowStyles.Add(new RowStyle(SizeType.Absolute, 31));
                 content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
                 content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
                 content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
                 content.Controls.Add(CenterLabel("قبان الغد " + CurrentVersion.ToString(3), 12, Ink, Canvas), 0, 0);
                 var author = CenterLabel("Abdelrahman Sawaftah", 9, Muted, Canvas);
@@ -85,7 +88,11 @@ namespace WeighbridgeBridge
                 StyleButton(checkUpdate, "التحقق من التحديثات", false);
                 checkUpdate.Size = new Size(190, 34);
                 checkUpdate.Margin = new Padding(0);
-                content.Controls.Add(Centered(checkUpdate), 0, 3);
+                updateProgress = new ProgressBar { Dock = DockStyle.Fill, Minimum = 0,
+                                                   Maximum = 100,         AccessibleName = "تقدم تنزيل التحديث",
+                                                   Visible = false,       Margin = new Padding(12, 5, 12, 5) };
+                content.Controls.Add(updateProgress, 0, 3);
+                content.Controls.Add(Centered(checkUpdate), 0, 4);
                 updateWindow.Controls.Add(content);
                 updateWindow.AcceptButton = checkUpdate;
                 updateWindow.FormClosing += (s, e) =>
@@ -127,7 +134,7 @@ namespace WeighbridgeBridge
                 if (IsDisposed || updateCancellation.IsCancellationRequested)
                     return;
                 availableUpdate = null;
-                updateVersion.Text = "";
+                updateVersion.Text = UpdateError(ex);
                 WriteBackgroundLog("Update check: " + ex.GetType().Name);
                 ShowUpdateButton("تعذر التحقق", false);
             }
@@ -139,22 +146,52 @@ namespace WeighbridgeBridge
             }
         }
 
+        static string UpdateError(Exception error)
+        {
+            if (error is UnauthorizedAccessException)
+                return "تحقق من صلاحية الكتابة في مجلد البرنامج.";
+            if (error is InvalidDataException)
+                return "تعذر التحقق من سلامة حزمة التحديث.";
+            if (error is System.Net.WebException)
+                return "تعذر الاتصال بخدمة التحديث. تحقق من الشبكة ثم أعد المحاولة.";
+            if (error is IOException)
+                return "تعذر تجهيز ملفات التحديث؛ تحقق من المساحة والملفات المفتوحة.";
+            return "تعذر إكمال العملية. راجع سجل التشخيص وأعد المحاولة.";
+        }
+
         async Task InstallUpdate()
         {
             if (updating || checkingUpdate || availableUpdate == null)
                 return;
+            if (!ResolveUnsavedSettings())
+                return;
             updating = true;
             checkUpdate.Enabled = false;
             string stage = null;
+            bool stoppedForInstall = false;
+            updateInstallFailed = false;
             try
             {
                 var update = availableUpdate;
                 stage = UpdateTransaction.NewStage(Application.StartupPath);
                 string zip = Path.Combine(stage, "package.zip");
                 ShowUpdateButton("جارٍ التنزيل", false);
-                await ReleaseClient.Fetch(update, zip, updateCancellation.Token);
+                updateProgress.Visible = true;
+                updateProgress.Value = 0;
+                var progress = new Progress<int>(value =>
+                                                 {
+                                                     if (!IsDisposed && !updateProgress.IsDisposed)
+                                                     {
+                                                         updateProgress.Value = value;
+                                                         updateVersion.Text = "تنزيل التحديث " + value + "%";
+                                                     }
+                                                 });
+                await ReleaseClient.Fetch(update, zip, updateCancellation.Token, progress);
                 // Extraction and hashing run away from the serial polling/UI thread.
-                await Task.Run(() => UpdateTransaction.Extract(zip, stage, update.Version, update.Sha256));
+                ShowUpdateButton("جارٍ التحقق والتجهيز", false);
+                updatePreparation =
+                    Task.Run(() => UpdateTransaction.Extract(zip, stage, update.Version, update.Sha256));
+                await updatePreparation;
                 if (updateCancellation.IsCancellationRequested)
                     return;
                 if (MessageBox.Show(updateWindow,
@@ -163,7 +200,8 @@ namespace WeighbridgeBridge
                                     "قبان الغد", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                     return;
                 StopReading();
-                var pending = Task.WhenAll(primary.Pending, returns.Pending);
+                stoppedForInstall = true;
+                var pending = Task.WhenAll(primary.Pending, returns.Pending, serialSession.Completion);
                 if (await Task.WhenAny(pending, Task.Delay(10000)) != pending)
                     throw new IOException("Requests are still closing.");
                 await pending;
@@ -192,7 +230,13 @@ namespace WeighbridgeBridge
                 if (!updateCancellation.IsCancellationRequested)
                 {
                     WriteBackgroundLog("Update install: " + ex.GetType().Name);
-                    MessageBox.Show(updateWindow, "لم يكتمل التحديث. النسخة الحالية وإعداداتك محفوظة.\n" + ex.Message,
+                    updateInstallFailed = stoppedForInstall;
+                    updateVersion.Text = UpdateError(ex);
+                    MessageBox.Show(updateWindow,
+                                    "لم يكتمل التحديث. " + UpdateError(ex) +
+                                        (stoppedForInstall
+                                             ? "\nالقبان متوقف. بعد معالجة السبب اضغط تشغيل لاستئناف القراءة والإرسال."
+                                             : "\nلم تتغير حالة تشغيل القبان."),
                                     "قبان الغد");
                 }
             }
@@ -201,6 +245,7 @@ namespace WeighbridgeBridge
                 updating = false;
                 if (!IsDisposed)
                 {
+                    updateProgress.Visible = false;
                     ShowUpdateButton("يوجد تحديث", true);
                     checkUpdate.Enabled = true;
                 }

@@ -17,11 +17,11 @@ namespace WeighbridgeBridge
 {
     public sealed partial class MainForm : Form
     {
-        TextBox port = new TextBox(), endpoint = new TextBox(), company = new TextBox(), marker = new TextBox(),
-                token = new TextBox(), returnsEndpoint = new TextBox(), returnsToken = new TextBox();
+        TextBox endpoint = new TextBox(), company = new TextBox(), marker = new TextBox(), token = new TextBox(),
+                returnsEndpoint = new TextBox(), returnsToken = new TextBox();
         NumericUpDown baud = new NumericUpDown(), bits = new NumericUpDown(), interval = new NumericUpDown(),
                       fresh = new NumericUpDown();
-        ComboBox parity = new ComboBox();
+        ComboBox parity = new ComboBox(), port = new ComboBox();
         Button start = new Button(), stop = new Button(), save = new Button();
         Label weight = new Label();
         TableLayoutPanel fields = new TableLayoutPanel();
@@ -35,13 +35,56 @@ namespace WeighbridgeBridge
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WeighbridgeBridge");
         Settings settings;
         readonly OutputChannel primary, returns;
-        public MainForm()
+        bool closeApproved, closingInProgress;
+        void CloseSafely(object sender, FormClosingEventArgs e)
         {
+            if (closeApproved)
+                return;
+            e.Cancel = true;
+            if (closingInProgress)
+                return;
+            if (!ResolveUnsavedSettings())
+                return;
+            closingInProgress = true;
+            Enabled = false;
+            // Queue shutdown after FormClosing returns, including when Close is called from Shown.
+            BeginInvoke(new Action(async () => await CompleteClosing()));
+        }
+        async Task CompleteClosing()
+        {
+            updateCancellation.Cancel();
+            StopReading();
+            poll.Stop();
+            try
+            {
+                var pending =
+                    Task.WhenAll(primary.Pending, returns.Pending, serialSession.Completion, updatePreparation);
+                if (await Task.WhenAny(pending, Task.Delay(3000)) == pending)
+                    await pending;
+                else
+                    WriteBackgroundLog("انتهت مهلة إغلاق مهام الاتصال.");
+            }
+            catch (Exception)
+            {
+                WriteBackgroundLog("تعذر إكمال إغلاق مهام الاتصال.");
+            }
+            await logWriter.StopAsync(2000);
+            closeApproved = true;
+            Enabled = true;
+            Close();
+        }
+        public MainForm() : this(null) {}
+        public MainForm(string settingsDirectory)
+        {
+            if (settingsDirectory != null)
+                dataDir = Path.GetFullPath(settingsDirectory);
             primary =
                 new OutputChannel(OutputKind.Primary, "الأساسي", () => clock.ElapsedMilliseconds, WriteLog, SaveReply);
             returns = new OutputChannel(OutputKind.Returns, "القناة الثانية", () => clock.ElapsedMilliseconds,
                                         WriteBackgroundLog, SaveReply);
+            serialSession = new SerialSession(() => clock.ElapsedMilliseconds);
             BuildInterface();
+            BindSettingsChanges();
             settings = LoadSettings();
             try
             {
@@ -56,21 +99,7 @@ namespace WeighbridgeBridge
             BindUpdates();
             start.Click += (s, e) => StartReading();
             stop.Click += (s, e) => StopReading();
-            save.Click += (s, e) =>
-            {
-                try
-                {
-                    var cfg = ReadSettings();
-                    SettingsStore.Save(SettingsPath, cfg);
-                    settingsNeedRepair = false;
-                    settings = cfg;
-                    WriteLog("تم حفظ الإعدادات؛ رموز الربط مشفرة لحساب Windows الحالي.");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message);
-                }
-            };
+            save.Click += (s, e) => SaveSettings();
             poll.Interval = 100;
             poll.Tick += (s, e) =>
             {
@@ -78,10 +107,12 @@ namespace WeighbridgeBridge
                 RefreshInterface();
             };
             poll.Start();
-            FormClosing += (s, e) =>
+            FormClosing += CloseSafely;
+            Disposed += (s, e) =>
             {
-                StopReading();
-                poll.Stop();
+                poll.Dispose();
+                fieldErrors.Dispose();
+                helpTips.Dispose();
             };
         }
     }

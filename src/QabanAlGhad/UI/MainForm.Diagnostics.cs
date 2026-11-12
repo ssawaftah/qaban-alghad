@@ -20,16 +20,19 @@ namespace WeighbridgeBridge
         {
             return time.HasValue ? time.Value.ToString("HH:mm:ss") : "—";
         }
-        readonly Queue<Action> logJobs = new Queue<Action>();
-        bool logWriterRunning;
-        int droppedLogJobs;
-        int logWriteErrors;
+        readonly BackgroundLogWriter logWriter = new BackgroundLogWriter();
         string lastSerialIssue;
         string lastFrame = "";
         bool lastFrameValid;
         decimal lastFrameWeight;
+        DateTime lastFrameUtc;
         void RememberReading(long now, string raw, bool valid, decimal value)
         {
+            RememberSample(now, DateTime.UtcNow, raw, valid, value);
+        }
+        void RememberSample(long now, DateTime utc, string raw, bool valid, decimal value)
+        {
+            lastFrameUtc = utc;
             lastFrameAt = now;
             lastFrame = Regex.Replace(raw ?? "", @"[^\x20-\x7e]", "?");
             if (lastFrame.Length > 160)
@@ -44,22 +47,26 @@ namespace WeighbridgeBridge
                 return;
             nextReadingLog = now + 1000;
             lastLoggedFrameAt = lastFrameAt;
-            string time = DateTime.Now.ToString("HH:mm:ss"),
-                   value = lastFrameValid ? lastFrameWeight.ToString(CultureInfo.InvariantCulture) : "غير مستقرة";
+            string time = lastFrameUtc.ToLocalTime().ToString("HH:mm:ss"),
+                   value = lastFrameValid ? lastFrameWeight.ToString(CultureInfo.InvariantCulture)
+                                          : ReadingDescription.Rejection(lastFrame);
             AppendGrid(readingGrid, new object[] { time, value, lastFrame }, 1200, false);
             AppendFile("readings.log",
-                       DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " | " + value + " | " + lastFrame);
+                       lastFrameUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") + " | " + value + " | " + lastFrame);
         }
         void AppendGrid(DataGridView grid, object[] values, int limit, bool error)
         {
-            bool follow = grid.Rows.Count == 0 || grid.FirstDisplayedScrollingRowIndex < 0 ||
-                          grid.FirstDisplayedScrollingRowIndex + grid.DisplayedRowCount(false) >= grid.Rows.Count - 1;
+            bool follow = followLogs &&
+                          (grid.Rows.Count == 0 || grid.FirstDisplayedScrollingRowIndex < 0 ||
+                           grid.FirstDisplayedScrollingRowIndex + grid.DisplayedRowCount(false) >= grid.Rows.Count - 1);
             if (grid.Rows.Count >= limit)
                 grid.Rows.RemoveAt(0);
             int index = grid.Rows.Add(values);
+            grid.Rows[index].Tag = error;
+            ApplyLogFilter(grid, grid.Rows[index]);
             if (error)
                 grid.Rows[index].DefaultCellStyle.ForeColor = Color.Firebrick;
-            if (follow && grid.Visible)
+            if (follow && grid.Visible && grid.Rows[index].Visible)
                 grid.FirstDisplayedScrollingRowIndex = index;
         }
         void AppendFile(string name, string text)
@@ -80,42 +87,28 @@ namespace WeighbridgeBridge
         }
         void QueueLog(Action write)
         {
-            lock (logJobs)
-            {
-                if (logJobs.Count >= 256)
-                {
-                    droppedLogJobs++;
-                    return;
-                }
-                logJobs.Enqueue(write);
-                if (logWriterRunning)
-                    return;
-                logWriterRunning = true;
-            }
-            Task.Run((Action)DrainLogs);
+            logWriter.Enqueue(write);
         }
-        void DrainLogs()
+        void ApplyLogFilter(DataGridView grid, DataGridViewRow row)
         {
-            while (true)
+            string query = logSearch.Text.Trim();
+            bool matches = query.Length == 0;
+            foreach (DataGridViewCell cell in row.Cells)
+                if (Convert.ToString(cell.Value).IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                    matches = true;
+            bool visible =
+                matches && (grid != eventGrid || logFilter.SelectedIndex != 1 || object.Equals(row.Tag, true));
+            if (!visible && grid.CurrentRow == row)
+                grid.CurrentCell = null;
+            row.Visible = visible;
+        }
+        void FilterLogs()
+        {
+            foreach (var grid in new[] { readingGrid, eventGrid })
             {
-                Action write;
-                lock (logJobs)
-                {
-                    if (logJobs.Count == 0)
-                    {
-                        logWriterRunning = false;
-                        return;
-                    }
-                    write = logJobs.Dequeue();
-                }
-                try
-                {
-                    write();
-                }
-                catch (Exception)
-                {
-                    System.Threading.Interlocked.Increment(ref logWriteErrors);
-                }
+                grid.CurrentCell = null;
+                foreach (DataGridViewRow row in grid.Rows)
+                    ApplyLogFilter(grid, row);
             }
         }
         async Task ShowDiagnostics(Button button)
@@ -139,8 +132,13 @@ namespace WeighbridgeBridge
                     Environment.NewLine + "آخر قراءة: " + reading + Environment.NewLine + "آخر إرسال: " + sent +
                     Environment.NewLine + "آخر عطل منفذ: " + (lastSerialIssue ?? "—") + Environment.NewLine +
                     "آخر عطل إرسال: " + (primary.LastTransportIssue ?? "—") + Environment.NewLine +
-                    "أخطاء حفظ السجل: " + logWriteErrors + " | أحداث لم تُحفظ: " + droppedLogJobs;
-                using (var dialog = new Form { Text = "فحص الاتصال", Width = 525, Height = 390,
+                    "القناة الخلفية: " +
+                    (returns.ConfigurationError ?? returns.LastResponseIssue ?? returns.LastTransportIssue ??
+                     (returns.Ready ? "مهيأة" : "متوقفة")) +
+                    Environment.NewLine + "أخطاء حفظ السجل: " + logWriter.Errors +
+                    " | أحداث لم تُحفظ: " + logWriter.Dropped + Environment.NewLine +
+                    "هذا تشخيص للحالة المحلية؛ لا يرسل طلب اختبار إلى الخادم.";
+                using (var dialog = new Form { Text = "تشخيص الاتصال", Width = 525, Height = 390,
                                                StartPosition = FormStartPosition.CenterParent })
                 {
                     var body = new TextBox { Multiline = true,      ReadOnly = true,
@@ -219,7 +217,8 @@ namespace WeighbridgeBridge
         }
         void SaveReply(ApiReply reply, string name)
         {
-            AppendFile(name, "HTTP " + reply.StatusCode);
+            AppendFile(name,
+                       "HTTP " + reply.StatusCode + (reply.DiagnosticCode == null ? "" : " | " + reply.DiagnosticCode));
         }
     }
 }
