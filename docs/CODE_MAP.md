@@ -58,3 +58,11 @@
 ## إضافات0.11
 
 SettingsGate.cs يتحقق من مشتق كلمة مرور الإعدادات؛ SettingsUnlockDialog.cs يعرض نافذة مقنعة مع حد المحاولات. OperationStatus.cs يفصل الحالة المحلية عن إقرار الخادم. MainForm.Diagnostics.cs يأخذ عينة سجل كل ثانية ويحفظ قراءات وأحداث منفصلة؛ InterfaceTests.cs يتحقق من اللون والقفل والمواضع والسجل على Windows.
+
+## مكونات الاعتمادية
+
+- `Infrastructure/Serial/SerialSession.cs`: جلسة القراءة والاسترداد وصندوق أحدث عينة؛ واجهة ISerialConnection لاختبارات محلية.
+- `Infrastructure/Logging/BackgroundLogWriter.cs`: طابور كتابة محدود وتفريغ السجل عند الإغلاق.
+- `Domain/Weighing/ReadingDescription.cs`: تصنيف أسباب رفض الإطار.
+- `tests/QabanAlGhad.Tests/RegressionTests.cs`: اختبارات فساد الإعدادات وحماية الرموز والتشخيص وإغلاق السجل وجلسة القراءة.
+- `scripts/verify-package.ps1`: فحص محتويات الحزمة وبصماتها، و`scripts/sign.ps1` للتوقيع الاختياري بشهادة متاحة مسبقًا.
