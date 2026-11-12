@@ -10,45 +10,51 @@ namespace WeighbridgeBridge
         static DateTime blockedUntil;
         public SettingsUnlockDialog()
         {
-            UiTheme.Dialog(this, "فتح الإعدادات", new Size(430, 300));
+            UiTheme.Dialog(this, "فتح الإعدادات", new Size(400, 230));
+            BackColor = Color.White;
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5,
-                                              Padding = new Padding(26, 18, 26, 18) };
+                                              Padding = new Padding(24, 16, 24, 16), BackColor = Color.White };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
-            root.Controls.Add(UiTheme.Label("الإعدادات المحمية", UiTheme.Heading), 0, 0);
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+            root.Controls.Add(UiTheme.Label("فتح الإعدادات", UiTheme.Heading), 0, 0);
             var prompt = UiTheme.Label("أدخل كلمة المرور للمتابعة.", UiTheme.Small);
             prompt.ForeColor = UiTheme.Muted;
             root.Controls.Add(prompt, 0, 1);
             var password = new TextBox { UseSystemPasswordChar = true,
                                          TextAlign = HorizontalAlignment.Center,
                                          BorderStyle = BorderStyle.None,
-                                         Font = new Font("Segoe UI", 12),
+                                         Font = UiTheme.Body,
                                          MaxLength = 128,
                                          RightToLeft = RightToLeft.No,
                                          AccessibleName = "كلمة مرور الإعدادات" };
-            var host = new InputSurface { Dock = DockStyle.Fill, Padding = new Padding(16, 0, 16, 0) };
+            var host = new InputSurface { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 12, 0),
+                                          Margin = new Padding(0) };
             host.Controls.Add(password);
-            host.Layout += (sender, e) => password.SetBounds(16, (host.ClientSize.Height - password.Height) / 2,
-                                                             Math.Max(1, host.ClientSize.Width - 32), password.Height);
+            host.Layout += (sender, e) =>
+                password.SetBounds(host.Padding.Left, Math.Max(0, (host.ClientSize.Height - password.Height) / 2),
+                                   Math.Max(1, host.ClientSize.Width - host.Padding.Horizontal), password.Height);
             password.Enter += (sender, e) => host.Invalidate();
             password.Leave += (sender, e) => host.Invalidate();
             root.Controls.Add(host, 0, 2);
             var error = UiTheme.Label("", UiTheme.Small);
             error.ForeColor = UiTheme.Danger;
-            error.TextAlign = ContentAlignment.MiddleCenter;
             root.Controls.Add(error, 0, 3);
             var enter = new ActionButton();
             var cancel = new ActionButton();
             UiTheme.Button(enter, "فتح الإعدادات", true);
             UiTheme.Button(cancel, "إلغاء", false);
+            enter.Size = new Size(140, 36);
+            cancel.Size = new Size(88, 36);
+            enter.Margin = cancel.Margin = new Padding(0, 6, 8, 0);
             cancel.DialogResult = DialogResult.Cancel;
-            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill,        FlowDirection = FlowDirection.RightToLeft,
                                                 RightToLeft = RightToLeft.No, WrapContents = false,
-                                                Padding = new Padding(0, 4, 0, 0) };
+                                                BackColor = Color.White,      Margin = new Padding(0),
+                                                Padding = new Padding(0) };
             actions.Controls.Add(enter);
             actions.Controls.Add(cancel);
             root.Controls.Add(actions, 0, 4);

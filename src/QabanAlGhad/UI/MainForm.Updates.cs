@@ -60,29 +60,37 @@ namespace WeighbridgeBridge
             if (updateWindow == null)
             {
                 updateWindow = new Form();
-                UiTheme.Dialog(updateWindow, "معلومات الإصدار والتحديث", new Size(520, 310));
+                UiTheme.Dialog(updateWindow, "معلومات الإصدار والتحديث", new Size(430, 230));
                 var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5,
-                                                     Padding = new Padding(26, 20, 26, 18) };
+                                                     Padding = new Padding(24, 16, 24, 16), BackColor = Color.White };
                 content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
-                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
                 content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
                 content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-                content.Controls.Add(CenterLabel("قبان الغد " + CurrentVersion.ToString(3), 18, Ink, Canvas), 0, 0);
-                var author = CenterLabel("Abdelrahman Sawaftah", 9, Muted, Canvas);
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+                content.Controls.Add(UiTheme.Label("قبان الغد " + CurrentVersion.ToString(3), UiTheme.Heading), 0, 0);
+                var author = UiTheme.Label("Abdelrahman Sawaftah", UiTheme.Small);
+                author.ForeColor = Muted;
                 author.RightToLeft = RightToLeft.No;
+                author.TextAlign = ContentAlignment.MiddleRight;
                 content.Controls.Add(author, 0, 1);
-                updateVersion = CenterLabel("", 9, Ink, Canvas);
+                updateVersion = UiTheme.Label("", UiTheme.Small);
+                updateVersion.AutoEllipsis = false;
                 content.Controls.Add(updateVersion, 0, 2);
                 StyleButton(checkUpdate, "التحقق من التحديثات", false);
-                checkUpdate.Size = new Size(230, 44);
-                checkUpdate.Margin = new Padding(0);
+                checkUpdate.Size = new Size(182, 36);
+                checkUpdate.Margin = new Padding(0, 6, 0, 0);
                 updateProgress = new ProgressMeter { Dock = DockStyle.Fill, Minimum = 0,
                                                      Maximum = 100,         AccessibleName = "تقدم تنزيل التحديث",
-                                                     Visible = false,       Margin = new Padding(12, 5, 12, 5) };
+                                                     Visible = false,       Margin = new Padding(0, 5, 0, 5) };
                 content.Controls.Add(updateProgress, 0, 3);
-                content.Controls.Add(Centered(checkUpdate), 0, 4);
+                var actions =
+                    new FlowLayoutPanel { Dock = DockStyle.Fill,        FlowDirection = FlowDirection.RightToLeft,
+                                          RightToLeft = RightToLeft.No, WrapContents = false,
+                                          BackColor = Color.White,      Margin = new Padding(0) };
+                actions.Controls.Add(checkUpdate);
+                content.Controls.Add(actions, 0, 4);
                 updateWindow.Controls.Add(content);
                 updateWindow.AcceptButton = checkUpdate;
                 updateWindow.FormClosing += (s, e) =>
@@ -101,7 +109,7 @@ namespace WeighbridgeBridge
             checkUpdate.BackColor = offerUpdate ? Accent : Color.White;
             checkUpdate.ForeColor = offerUpdate ? System.Drawing.Color.White : Ink;
             checkUpdate.FlatAppearance.MouseOverBackColor =
-                offerUpdate ? System.Drawing.Color.FromArgb(0, 105, 98) : UiTheme.Soft;
+                offerUpdate ? ControlPaint.Dark(Accent, 0.12f) : UiTheme.Soft;
         }
 
         async Task CheckUpdate()

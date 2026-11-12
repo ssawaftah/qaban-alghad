@@ -44,8 +44,11 @@ namespace WeighbridgeBridge
                 if (Environment.OSVersion.Platform == PlatformID.Win32NT)
                     form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
                 else
+                {
+                    form.Refresh();
                     using (var graphics = Graphics.FromImage(bitmap))
                         graphics.CopyFromScreen(form.Location, Point.Empty, form.Size);
+                }
                 bitmap.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, name));
             }
         }
@@ -90,8 +93,14 @@ namespace WeighbridgeBridge
                             item.Key.Font = new Font(item.Value.FontFamily, item.Value.Size * scale, item.Value.Style,
                                                      item.Value.Unit);
                         Set(form, "compactClient", form.ClientSize);
-                        Set(form, "pageScale", form.ClientSize.Width / 720f);
+                        Set(form, "pageScale", form.ClientSize.Width / 640f);
                         Call(form, "ShowScreen", Field(form, "settingsPage"), Field(form, "settingsNav"));
+                        var viewport = (Panel)Field(form, "settingsViewport");
+                        var fields = (TableLayoutPanel)Field(form, "fields");
+                        float layoutScale =
+                            Math.Max((float)Field(form, "pageScale"), form.Font.Height / (float)UiTheme.Body.Height);
+                        bool settingsFit =
+                            fields.ColumnCount == 2 && viewport.ClientSize.Height >= Math.Ceiling(392 * layoutScale);
                         foreach (string name in new[] { "port", "baud", "bits", "parity", "fresh", "endpoint",
                                                         "company", "token" })
                         {
@@ -99,6 +108,16 @@ namespace WeighbridgeBridge
                             Check(control.Width >= 40 && control.Height >= 20, "scaled input usable: " + name);
                             Check(!string.IsNullOrWhiteSpace(control.AccessibleName),
                                   "scaled input accessible: " + name);
+                            if (settingsFit)
+                            {
+                                var card = (Control)Field(
+                                    form, name == "endpoint" || name == "company" || name == "token" ? "serverCard"
+                                                                                                     : "serialCard");
+                                var inputBounds = new Rectangle(control.PointToScreen(Point.Empty), control.Size);
+                                Check(viewport.RectangleToScreen(viewport.ClientRectangle).Contains(inputBounds) &&
+                                          card.RectangleToScreen(card.ClientRectangle).Contains(inputBounds),
+                                      "scaled input fits its card and viewport: " + name + " at " + factor);
+                            }
                             var host = control.Parent;
                             var grid = host.Parent as TableLayoutPanel;
                             if (grid != null)
@@ -123,15 +142,18 @@ namespace WeighbridgeBridge
                                 Check(control.Left >= 0 && control.Right <= control.Parent.ClientSize.Width &&
                                           control.Bottom <= control.Parent.ClientSize.Height,
                                       "log toolbar wraps without clipping at scale " + factor);
+                        Call(form, "SelectLogView", false);
                         Check(((DataGridView)Field(form, "readingGrid")).Height >= 70 * scale,
-                              "reading table remains usable at scale " + factor);
+                              "reading table remains usable at scale " + factor + ": " +
+                                  ((DataGridView)Field(form, "readingGrid")).Height);
+                        Capture(form, "ui-readings-" + factor + ".png");
+                        Call(form, "SelectLogView", true);
                         Check(((DataGridView)Field(form, "eventGrid")).Height >= 70 * scale,
                               "event table remains usable at scale " + factor);
                         var logs = (Panel)Field(form, "logsPage");
                         foreach (var button in All(logs))
-                            if (button is ActionButton &&
-                                (button.Text == "تشخيص الاتصال" || button.Text == "نسخ المحدد" ||
-                                 button.Text == "فتح مجلد السجل"))
+                            if (button is ActionButton && (button.Text == "تشخيص الاتصال" ||
+                                                           button.Text == "نسخ المحدد" || button.Text == "مجلد السجل"))
                                 Check(logs.RectangleToScreen(logs.ClientRectangle)
                                           .Contains(button.RectangleToScreen(button.ClientRectangle)),
                                       "log footer action remains visible at scale " + factor);
@@ -141,6 +163,7 @@ namespace WeighbridgeBridge
                     catch (Exception ex)
                     {
                         failure = ex;
+                        Capture(form, "ui-failure-" + factor + ".png");
                     }
                     finally
                     {
@@ -268,18 +291,20 @@ namespace WeighbridgeBridge
                                       stop.PointToScreen(Point.Empty).X > status.PointToScreen(Point.Empty).X,
                               "actions ordered right to left");
                         Check(start.Top == stop.Top && stop.Top == status.Top, "actions share one row");
-                        Check(!verifyNativeRtl || Math.Abs(start.Left - stop.Right - (stop.Left - status.Right)) <= 1,
-                              "equal action gaps");
+                        Check(!verifyNativeRtl || stop.Right <= start.Left && status.Right <= stop.Left,
+                              "action group and status do not overlap");
                         Check(!verifyNativeRtl ||
                                   overviewNav.PointToScreen(Point.Empty).X > logsNav.PointToScreen(Point.Empty).X &&
                                       logsNav.PointToScreen(Point.Empty).X > settingsNav.PointToScreen(Point.Empty).X,
                               "tabs ordered weight logs settings");
-                        Check(!verifyNativeRtl || Math.Abs(overviewNav.Width - logsNav.Width) <= 2 &&
-                                                      Math.Abs(logsNav.Width - settingsNav.Width) <= 2,
-                              "tabs equal width");
-                        Check(overviewNav.BackColor.G > overviewNav.BackColor.R && overviewNav.ForeColor == Color.White,
-                              "default tab active green");
-                        Check(form.ClientSize.Width <= 800 && form.ClientSize.Height <= 480, "compact default window");
+                        Check(!verifyNativeRtl ||
+                                  logsNav.Right <= overviewNav.Left && settingsNav.Right <= logsNav.Left,
+                              "text navigation items do not overlap");
+                        Check(overviewNav is NavButton && overviewNav.BackColor == Color.White &&
+                                  overviewNav.ForeColor == UiTheme.Teal,
+                              "default text tab has the selected accent");
+                        Check(form.ClientSize.Width <= 720 && form.ClientSize.Height <= 400,
+                              "compact instrument window");
                         var updateButton = (Button)Field(form, "updateInfo");
                         var credit = (Label)Field(form, "versionCredit");
                         Check(updateButton.Visible && credit.Visible, "update header visible on overview");
@@ -314,7 +339,8 @@ namespace WeighbridgeBridge
                         }
                         Check(informationOpened, "icon opens version and update dialog");
                         Size compactSize = form.ClientSize;
-                        Check(weight.Text == "كغ", "no dash or fabricated zero");
+                        Check(weight.Text == "كغ", "no fabricated numeric startup reading");
+                        Check(weight is WeightDisplay, "weight renderer separates number, unit and empty state");
                         Check(status.AccessibleRole == AccessibleRole.StaticText && !status.TabStop,
                               "status is a noninteractive accessible label");
                         var serialPort = (ComboBox)Field(form, "port");
@@ -386,6 +412,9 @@ namespace WeighbridgeBridge
                         long now = ((Stopwatch)Field(form, "clock")).ElapsedMilliseconds;
                         Set(form, "running", true);
                         Set(form, "received", now);
+                        Set(form, "latest", -120m);
+                        start.Enabled = false;
+                        stop.Enabled = true;
                         typeof(OutputChannel)
                             .GetProperty("LastBodyWritten")
                             .GetSetMethod(true)
@@ -393,8 +422,22 @@ namespace WeighbridgeBridge
                         weight.Text = "-120 كغ";
                         Call(form, "RefreshInterface");
                         Check(status.BackColor.G > status.BackColor.R, "new local write green");
+                        decimal[] samples = { 0m, 12.5m, -120m, decimal.MaxValue };
+                        string[] sampleNames = { "zero", "decimal", "negative", "long" };
+                        for (int index = 0; index < samples.Length; index++)
+                        {
+                            Set(form, "latest", samples[index]);
+                            Set(form, "received", ((Stopwatch)Field(form, "clock")).ElapsedMilliseconds);
+                            weight.Text =
+                                samples[index].ToString(System.Globalization.CultureInfo.InvariantCulture) + " كغ";
+                            Call(form, "RefreshInterface");
+                            Capture(form, "ui-weight-" + sampleNames[index] + ".png");
+                        }
+                        Set(form, "latest", -120m);
+                        weight.Text = "-120 كغ";
+                        Call(form, "RefreshInterface");
                         Capture(form, "ui-overview.png");
-                        Set(form, "running", false);
+                        Call(form, "StopReading");
                         Call(form, "RefreshInterface");
                         Call(form, "ShowScreen", Field(form, "settingsPage"), Field(form, "settingsNav"));
                         foreach (string name in new[] { "port", "baud", "bits", "parity", "fresh", "endpoint",
@@ -417,10 +460,13 @@ namespace WeighbridgeBridge
                         Check(form.ClientSize.Width > compactSize.Width && form.ClientSize.Height > compactSize.Height,
                               "settings expand for readability");
                         Check(updateButton.Visible && credit.Visible, "update header visible in settings");
+                        if (verifyNativeRtl && form.ClientSize.Width >= 760 && form.ClientSize.Height >= 570)
+                            Check(!((Panel)Field(form, "settingsViewport")).VerticalScroll.Visible,
+                                  "basic settings fit a normal desktop without scrolling");
                         Capture(form, "ui-settings.png");
                         Call(form, "ShowScreen", Field(form, "logsPage"), Field(form, "logsNav"));
-                        Check(logsNav.ForeColor == Color.White && overviewNav.ForeColor != Color.White,
-                              "selected tab highlight follows navigation");
+                        Check(logsNav.ForeColor == UiTheme.Teal && overviewNav.ForeColor != UiTheme.Teal,
+                              "selected text tab accent follows navigation");
                         Capture(form, "ui-logs-empty.png");
                         Call(form, "WriteLog", "اختبار واجهة محلي دون أوزان إنتاجية");
                         Call(form, "RememberReading", now, "ST,GS,-120,kg", true, -120m);
@@ -455,14 +501,20 @@ namespace WeighbridgeBridge
                         Check(Convert.ToString(rejected.Cells[0].Value) == arrival.ToLocalTime().ToString("HH:mm:ss"),
                               "reading log uses arrival timestamp");
                         Check(updateButton.Visible && credit.Visible, "update header visible in logs");
+                        Call(form, "SelectLogView", false);
+                        Capture(form, "ui-readings.png");
+                        Call(form, "SelectLogView", true);
                         Capture(form, "ui-logs.png");
                         Call(form, "ShowScreen", Field(form, "overviewPage"), Field(form, "overviewNav"));
                         Check(form.ClientSize == compactSize, "return to compact weight view");
                         TestDialogs(form);
+                        Call(form, "StopReading");
                         Call(form, "RefreshInterface");
+                        Check(weight.Text == "كغ" && start.Enabled && !stop.Enabled,
+                              "stopped preview uses the actual stop lifecycle");
                         Capture(form, "ui-overview-stopped.png");
                         Console.WriteLine(verifyNativeRtl
-                                              ? "PASS: Windows UI layout, settings lock, local status and split logs"
+                                              ? "PASS: Windows UI layout, settings lock, local status and log views"
                                               : "PASS: UI behavior checks; native RTL geometry requires Windows");
                     }
                     catch (Exception ex)

@@ -17,6 +17,7 @@ jobs:
           name: QabanAlGhad-Windows
           path: dist/*.zip
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: QabanAlGhad-TestTools
           path: out/*
