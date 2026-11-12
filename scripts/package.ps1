@@ -1,7 +1,8 @@
-param([string]$OutputDirectory = '')
+param([string]$OutputDirectory = '', [string]$CertificateThumbprint = '')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 & (Join-Path $PSScriptRoot 'build.ps1')
+if ($CertificateThumbprint) { & (Join-Path $PSScriptRoot 'sign.ps1') -CertificateThumbprint $CertificateThumbprint }
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $root 'dist' }
 $version = (Get-Content (Join-Path $root 'VERSION') -Raw).Trim()
 $actual = [Reflection.AssemblyName]::GetAssemblyName((Join-Path $root 'out\QabanAlGhad.exe')).Version
@@ -21,5 +22,6 @@ Get-ChildItem $stage -File | ForEach-Object { $hashes[$_.Name] = (Get-FileHash $
 $hashes | ConvertTo-Json | Set-Content (Join-Path $stage 'SHA256.json') -Encoding UTF8
 $zip = Join-Path $OutputDirectory "QabanAlGhad-$version.zip"
 Compress-Archive -Path $stage -DestinationPath $zip -Force
+& (Join-Path $PSScriptRoot 'verify-package.ps1') -Package $zip -Version $version
 Write-Host "Public package ready: $zip"
 # Never copy settings.json, Returns.setup.json, logs or private device credentials.

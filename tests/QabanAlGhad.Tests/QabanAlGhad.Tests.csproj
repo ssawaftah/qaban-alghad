@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CompatibilityTests.cs" />
+    <Compile Include="RegressionTests.cs" />
     <Compile Include="DualDeliveryTests.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>

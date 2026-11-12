@@ -21,3 +21,12 @@ response*.txt
 .env
 .env.*
 !.env.example
+
+# Private backups, atomic writes, and update transactions
+settings.json.bak
+settings.json.*.tmp
+Returns.setup*.json
+!Returns.setup.example.json
+.qaban-update/
+.qaban-update.json*
+*.update-next

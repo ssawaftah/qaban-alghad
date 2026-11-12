@@ -41,6 +41,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Failed fixture compilation failed.' }
 if (!$SkipTests) {
     & $tests --ui-test
     if ($LASTEXITCODE -ne 0) { throw 'Windows UI tests failed.' }
+    foreach ($scale in @('1.25', '1.5', '2.0')) {
+        & $tests --ui-scale-test $scale
+        if ($LASTEXITCODE -ne 0) { throw "UI layout scale $scale failed." }
+    }
     & $tests --update-lifecycle
     if ($LASTEXITCODE -ne 0) { throw 'Real Windows update/rollback tests failed.' }
 }
