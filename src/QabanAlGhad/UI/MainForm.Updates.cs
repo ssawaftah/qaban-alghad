@@ -26,7 +26,7 @@ namespace WeighbridgeBridge
             }
         }
 
-        readonly Button updateInfo = new UpdateInfoButton(), checkUpdate = new Button();
+        readonly Button updateInfo = new UpdateInfoButton(), checkUpdate = new ActionButton();
         Form updateWindow;
         Label updateVersion;
         ProgressBar updateProgress;
@@ -59,38 +59,28 @@ namespace WeighbridgeBridge
         {
             if (updateWindow == null)
             {
-                updateWindow = new Form { Text = "معلومات الإصدار والتحديث",
-                                          ClientSize = new Size(390, 192),
-                                          StartPosition = FormStartPosition.CenterParent,
-                                          FormBorderStyle = FormBorderStyle.FixedDialog,
-                                          AutoScaleMode = AutoScaleMode.Font,
-                                          Font = Font,
-                                          BackColor = Canvas,
-                                          RightToLeft = RightToLeft.Yes,
-                                          RightToLeftLayout = true,
-                                          ShowInTaskbar = false,
-                                          MaximizeBox = false,
-                                          MinimizeBox = false };
+                updateWindow = new Form();
+                UiTheme.Dialog(updateWindow, "معلومات الإصدار والتحديث", new Size(520, 310));
                 var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5,
-                                                     Padding = new Padding(12, 10, 12, 8) };
+                                                     Padding = new Padding(26, 20, 26, 18) };
                 content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 31));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
                 content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
                 content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-                content.Controls.Add(CenterLabel("قبان الغد " + CurrentVersion.ToString(3), 12, Ink, Canvas), 0, 0);
+                content.Controls.Add(CenterLabel("قبان الغد " + CurrentVersion.ToString(3), 18, Ink, Canvas), 0, 0);
                 var author = CenterLabel("Abdelrahman Sawaftah", 9, Muted, Canvas);
                 author.RightToLeft = RightToLeft.No;
                 content.Controls.Add(author, 0, 1);
                 updateVersion = CenterLabel("", 9, Ink, Canvas);
                 content.Controls.Add(updateVersion, 0, 2);
                 StyleButton(checkUpdate, "التحقق من التحديثات", false);
-                checkUpdate.Size = new Size(190, 34);
+                checkUpdate.Size = new Size(230, 44);
                 checkUpdate.Margin = new Padding(0);
-                updateProgress = new ProgressBar { Dock = DockStyle.Fill, Minimum = 0,
-                                                   Maximum = 100,         AccessibleName = "تقدم تنزيل التحديث",
-                                                   Visible = false,       Margin = new Padding(12, 5, 12, 5) };
+                updateProgress = new ProgressMeter { Dock = DockStyle.Fill, Minimum = 0,
+                                                     Maximum = 100,         AccessibleName = "تقدم تنزيل التحديث",
+                                                     Visible = false,       Margin = new Padding(12, 5, 12, 5) };
                 content.Controls.Add(updateProgress, 0, 3);
                 content.Controls.Add(Centered(checkUpdate), 0, 4);
                 updateWindow.Controls.Add(content);
@@ -108,10 +98,10 @@ namespace WeighbridgeBridge
         {
             checkUpdate.Text = caption;
             checkUpdate.AccessibleName = caption;
-            checkUpdate.BackColor = offerUpdate ? Accent : System.Drawing.Color.FromArgb(231, 237, 241);
+            checkUpdate.BackColor = offerUpdate ? Accent : Color.White;
             checkUpdate.ForeColor = offerUpdate ? System.Drawing.Color.White : Ink;
             checkUpdate.FlatAppearance.MouseOverBackColor =
-                offerUpdate ? System.Drawing.Color.FromArgb(0, 105, 98) : System.Drawing.Color.FromArgb(219, 229, 235);
+                offerUpdate ? System.Drawing.Color.FromArgb(0, 105, 98) : UiTheme.Soft;
         }
 
         async Task CheckUpdate()
@@ -127,7 +117,8 @@ namespace WeighbridgeBridge
                 if (IsDisposed || updateCancellation.IsCancellationRequested)
                     return;
                 updateVersion.Text = availableUpdate == null ? "" : "الإصدار المتاح " + availableUpdate.Version;
-                ShowUpdateButton(availableUpdate == null ? "لا توجد تحديثات" : "يوجد تحديث", availableUpdate != null);
+                ShowUpdateButton(availableUpdate == null ? "لديك أحدث إصدار" : "تنزيل التحديث",
+                                 availableUpdate != null);
             }
             catch (Exception ex)
             {
@@ -183,6 +174,7 @@ namespace WeighbridgeBridge
                                                      if (!IsDisposed && !updateProgress.IsDisposed)
                                                      {
                                                          updateProgress.Value = value;
+                                                         updateProgress.Invalidate();
                                                          updateVersion.Text = "تنزيل التحديث " + value + "%";
                                                      }
                                                  });
@@ -194,7 +186,7 @@ namespace WeighbridgeBridge
                 await updatePreparation;
                 if (updateCancellation.IsCancellationRequested)
                     return;
-                if (MessageBox.Show(updateWindow,
+                if (AppMessage.Show(updateWindow,
                                     "التحديث " + update.Version +
                                         " جاهز. سيتوقف القبان والإرسال ويُعاد فتح البرنامج. تثبيت الآن؟",
                                     "قبان الغد", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
@@ -232,7 +224,7 @@ namespace WeighbridgeBridge
                     WriteBackgroundLog("Update install: " + ex.GetType().Name);
                     updateInstallFailed = stoppedForInstall;
                     updateVersion.Text = UpdateError(ex);
-                    MessageBox.Show(updateWindow,
+                    AppMessage.Show(updateWindow,
                                     "لم يكتمل التحديث. " + UpdateError(ex) +
                                         (stoppedForInstall
                                              ? "\nالقبان متوقف. بعد معالجة السبب اضغط تشغيل لاستئناف القراءة والإرسال."
@@ -246,7 +238,7 @@ namespace WeighbridgeBridge
                 if (!IsDisposed)
                 {
                     updateProgress.Visible = false;
-                    ShowUpdateButton("يوجد تحديث", true);
+                    ShowUpdateButton("تنزيل التحديث", true);
                     checkUpdate.Enabled = true;
                 }
                 // Retain only stages that contain a recovery backup.

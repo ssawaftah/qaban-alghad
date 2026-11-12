@@ -37,7 +37,7 @@ namespace WeighbridgeBridge
                     yield return nested;
             }
         }
-        static void Capture(MainForm form, string name)
+        static void Capture(Form form, string name)
         {
             using (var bitmap = new Bitmap(form.Width, form.Height))
             {
@@ -90,7 +90,7 @@ namespace WeighbridgeBridge
                             item.Key.Font = new Font(item.Value.FontFamily, item.Value.Size * scale, item.Value.Style,
                                                      item.Value.Unit);
                         Set(form, "compactClient", form.ClientSize);
-                        Set(form, "pageScale", form.ClientSize.Width / 640f);
+                        Set(form, "pageScale", form.ClientSize.Width / 720f);
                         Call(form, "ShowScreen", Field(form, "settingsPage"), Field(form, "settingsNav"));
                         foreach (string name in new[] { "port", "baud", "bits", "parity", "fresh", "endpoint",
                                                         "company", "token" })
@@ -103,10 +103,10 @@ namespace WeighbridgeBridge
                             var grid = host.Parent as TableLayoutPanel;
                             if (grid != null)
                             {
-                                var label = grid.GetControlFromPosition(0, grid.GetRow(host));
-                                Check(Math.Abs(label.PointToScreen(Point.Empty).Y + label.Height / 2 -
-                                               control.PointToScreen(Point.Empty).Y - control.Height / 2) <= 5 * scale,
-                                      "scaled field remains vertically aligned: " + name);
+                                var label = grid.GetControlFromPosition(0, 0);
+                                Check(label.PointToScreen(Point.Empty).Y + label.Height <=
+                                          control.PointToScreen(Point.Empty).Y,
+                                      "Arabic field label remains above input: " + name);
                             }
                         }
                         Check(((Panel)Field(form, "settingsPage")).AutoScroll, "scaled settings can scroll");
@@ -145,6 +145,92 @@ namespace WeighbridgeBridge
             }
             return 0;
         }
+        static void TestDialogs(MainForm form)
+        {
+            using (var confirm =
+                       AppMessage.Create("لديك تغييرات لم تُحفظ بعد. هل تريد حفظها وتطبيقها قبل المتابعة؟",
+                                         "تغييرات الإعدادات", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question))
+            {
+                confirm.Shown += (sender, e) =>
+                {
+                    Check(confirm.RightToLeft == RightToLeft.Yes && confirm.RightToLeftLayout,
+                          "confirmation uses Arabic layout");
+                    int choices = 0;
+                    foreach (var c in All(confirm))
+                        if (c is Button)
+                        {
+                            Check(c is ActionButton, "confirmation buttons themed");
+                            choices++;
+                        }
+                    Check(choices == 3, "save discard cancel choices retained");
+                    Capture(confirm, "ui-confirmation.png");
+                    confirm.DialogResult = DialogResult.Cancel;
+                    confirm.Close();
+                };
+                confirm.ShowDialog(form);
+            }
+            using (var error = AppMessage.Create("تعذر الاتصال بالميزان. راجع المنفذ وإعدادات الاتصال ثم أعد المحاولة.",
+                                                 "تعذر بدء القراءة", MessageBoxButtons.OK, MessageBoxIcon.Warning))
+            {
+                error.Shown += (sender, e) =>
+                {
+                    Capture(error, "ui-error.png");
+                    error.Close();
+                };
+                error.ShowDialog(form);
+            }
+            using (var timer = new System.Windows.Forms.Timer { Interval = 100 })
+            {
+                timer.Tick += (sender, e) =>
+                {
+                    foreach (Form dialog in Application.OpenForms)
+                    {
+                        if (dialog.Text != "عنوان الإرسال")
+                            continue;
+                        timer.Stop();
+                        Capture(dialog, "ui-endpoint.png");
+                        dialog.DialogResult = DialogResult.Cancel;
+                        dialog.Close();
+                        break;
+                    }
+                };
+                timer.Start();
+                Call(form, "EditEndpoint");
+                timer.Stop();
+            }
+            using (var button = new ActionButton()) using (var timer =
+                                                               new System.Windows.Forms.Timer { Interval = 100 })
+            {
+                bool opened = false;
+                timer.Tick += (sender, e) =>
+                {
+                    foreach (Form dialog in Application.OpenForms)
+                    {
+                        if (dialog.Text != "تشخيص الاتصال")
+                            continue;
+                        timer.Stop();
+                        opened = true;
+                        Check(dialog.RightToLeftLayout, "diagnostics use Arabic layout");
+                        Capture(dialog, "ui-diagnostics.png");
+                        dialog.Close();
+                        break;
+                    }
+                };
+                timer.Start();
+                var task = (System.Threading.Tasks.Task) typeof(MainForm)
+                               .GetMethod("ShowDiagnostics", BindingFlags.Instance | BindingFlags.NonPublic)
+                               .Invoke(form, new object[] { button });
+                var watch = Stopwatch.StartNew();
+                while (!task.IsCompleted && watch.ElapsedMilliseconds < 10000)
+                {
+                    Application.DoEvents();
+                    System.Threading.Thread.Sleep(10);
+                }
+                timer.Stop();
+                Check(task.IsCompleted && opened, "diagnostic dialog opens without production request");
+                task.GetAwaiter().GetResult();
+            }
+        }
         public static int Windows(bool verifyNativeRtl = true)
         {
             Exception failure = null;
@@ -175,12 +261,12 @@ namespace WeighbridgeBridge
                                   overviewNav.PointToScreen(Point.Empty).X > logsNav.PointToScreen(Point.Empty).X &&
                                       logsNav.PointToScreen(Point.Empty).X > settingsNav.PointToScreen(Point.Empty).X,
                               "tabs ordered weight logs settings");
-                        Check(Math.Abs(overviewNav.Width - logsNav.Width) <= 2 &&
-                                  Math.Abs(logsNav.Width - settingsNav.Width) <= 2,
+                        Check(!verifyNativeRtl || Math.Abs(overviewNav.Width - logsNav.Width) <= 2 &&
+                                                      Math.Abs(logsNav.Width - settingsNav.Width) <= 2,
                               "tabs equal width");
                         Check(overviewNav.BackColor.G > overviewNav.BackColor.R && overviewNav.ForeColor == Color.White,
                               "default tab active green");
-                        Check(form.ClientSize.Width <= 700 && form.ClientSize.Height <= 340, "compact default window");
+                        Check(form.ClientSize.Width <= 800 && form.ClientSize.Height <= 480, "compact default window");
                         var updateButton = (Button)Field(form, "updateInfo");
                         var credit = (Label)Field(form, "versionCredit");
                         Check(updateButton.Visible && credit.Visible, "update header visible on overview");
@@ -203,6 +289,7 @@ namespace WeighbridgeBridge
                                 if (information == null || !information.Visible)
                                     return;
                                 timer.Stop();
+                                Capture(information, "ui-updates.png");
                                 informationOpened = ((Button)Field(form, "checkUpdate")).Visible &&
                                                     information.Text == "معلومات الإصدار والتحديث";
                                 information.Close();
@@ -213,7 +300,7 @@ namespace WeighbridgeBridge
                         }
                         Check(informationOpened, "icon opens version and update dialog");
                         Size compactSize = form.ClientSize;
-                        Check(weight.Text == "kg", "no dash or fabricated zero");
+                        Check(weight.Text == "كغ", "no dash or fabricated zero");
                         Check(status.AccessibleRole == AccessibleRole.StaticText && !status.TabStop,
                               "status is a noninteractive accessible label");
                         var serialPort = (ComboBox)Field(form, "port");
@@ -257,6 +344,7 @@ namespace WeighbridgeBridge
                                         continue;
                                     timer.Stop();
                                     asked = true;
+                                    Capture(open, "ui-unlock.png");
                                     try
                                     {
                                         foreach (var control in All(open))
@@ -288,30 +376,29 @@ namespace WeighbridgeBridge
                             .GetProperty("LastBodyWritten")
                             .GetSetMethod(true)
                             .Invoke(Field(form, "primary"), new object[] { now });
-                        weight.Text = "-120 kg";
+                        weight.Text = "-120 كغ";
                         Call(form, "RefreshInterface");
                         Check(status.BackColor.G > status.BackColor.R, "new local write green");
                         Capture(form, "ui-overview.png");
                         Set(form, "running", false);
                         Call(form, "RefreshInterface");
                         Call(form, "ShowScreen", Field(form, "settingsPage"), Field(form, "settingsNav"));
-                        foreach (var control in All((Control)Field(form, "settingsPage")))
+                        foreach (string name in new[] { "port", "baud", "bits", "parity", "fresh", "endpoint",
+                                                        "company", "token" })
                         {
-                            var grid = control as TableLayoutPanel;
-                            if (grid == null || grid.ColumnCount != 2)
-                                continue;
-                            foreach (Control label in grid.Controls)
-                            {
-                                if (!(label is Label))
-                                    continue;
-                                int row = grid.GetRow(label);
-                                var input = grid.GetControlFromPosition(1, row);
-                                if (input == null)
-                                    continue;
-                                Check(Math.Abs(label.PointToScreen(Point.Empty).Y + label.Height / 2 -
-                                               input.PointToScreen(Point.Empty).Y - input.Height / 2) < 15,
-                                      "setting labels align with inputs");
-                            }
+                            var input = (Control)Field(form, name);
+                            Check(input.Parent is InputSurface, "all settings use themed focus surfaces: " + name);
+                            var field = input.Parent.Parent as TableLayoutPanel;
+                            Check(field != null && field.GetControlFromPosition(0, 0) is Label,
+                                  "all fields have Arabic captions above input: " + name);
+                        }
+                        Check(UiTheme.ParityName("None") == "بدون تكافؤ" && UiTheme.ParityName("Even") == "زوجي",
+                              "serial parity display translated without changing stored values");
+                        foreach (var control in All(form))
+                        {
+                            var button = control as Button;
+                            if (button != null && button != updateButton)
+                                Check(button is ActionButton, "all main actions use shared Arabic button styling");
                         }
                         Check(form.ClientSize.Width > compactSize.Width && form.ClientSize.Height > compactSize.Height,
                               "settings expand for readability");
@@ -320,6 +407,7 @@ namespace WeighbridgeBridge
                         Call(form, "ShowScreen", Field(form, "logsPage"), Field(form, "logsNav"));
                         Check(logsNav.ForeColor == Color.White && overviewNav.ForeColor != Color.White,
                               "selected tab highlight follows navigation");
+                        Capture(form, "ui-logs-empty.png");
                         Call(form, "WriteLog", "اختبار واجهة محلي دون أوزان إنتاجية");
                         Call(form, "RememberReading", now, "ST,GS,-120,kg", true, -120m);
                         Call(form, "FlushReadingLog", now);
@@ -356,6 +444,9 @@ namespace WeighbridgeBridge
                         Capture(form, "ui-logs.png");
                         Call(form, "ShowScreen", Field(form, "overviewPage"), Field(form, "overviewNav"));
                         Check(form.ClientSize == compactSize, "return to compact weight view");
+                        TestDialogs(form);
+                        Call(form, "RefreshInterface");
+                        Capture(form, "ui-overview-stopped.png");
                         Console.WriteLine(verifyNativeRtl
                                               ? "PASS: Windows UI layout, settings lock, local status and split logs"
                                               : "PASS: UI behavior checks; native RTL geometry requires Windows");

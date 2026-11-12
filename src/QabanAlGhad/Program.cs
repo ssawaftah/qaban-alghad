@@ -15,9 +15,10 @@ namespace WeighbridgeBridge
             {
                 updated = UpdateTransaction.Startup(app, args);
             }
-            catch (System.Exception ex)
+            catch (System.Exception)
             {
-                MessageBox.Show("تعذر استعادة التحديث.\n" + ex.Message);
+                AppMessage.Show(
+                    "تعذر استعادة التحديث. احتفظ بملفات النسخة السابقة وراجع سجل التحديث قبل المحاولة مجددًا.");
                 return 1;
             }
             if (pending && !updated)
@@ -27,7 +28,7 @@ namespace WeighbridgeBridge
             {
                 if (!first)
                 {
-                    MessageBox.Show("البرنامج مفتوح بالفعل.");
+                    AppMessage.Show("البرنامج مفتوح بالفعل.");
                     return 1;
                 }
                 Application.EnableVisualStyles();

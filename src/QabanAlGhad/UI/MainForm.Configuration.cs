@@ -54,17 +54,26 @@ namespace WeighbridgeBridge
                         settingsDirty = true;
                         save.Text = "حفظ وتطبيق *";
                         fieldErrors.SetError((Control)sender, "");
+                        SetFieldError((Control)sender, false);
                     }
                 };
+            }
+        }
+        static void SetFieldError(Control input, bool failed)
+        {
+            var host = input.Parent as InputSurface;
+            if (host != null)
+            {
+                host.HasError = failed;
+                host.Invalidate();
             }
         }
         bool ResolveUnsavedSettings()
         {
             if (!settingsDirty)
                 return true;
-            var answer =
-                MessageBox.Show(this, "توجد تغييرات غير محفوظة. حفظ وتطبيق الآن؟\nاختر لا لتجاهلها، أو إلغاء للبقاء.",
-                                "الإعدادات", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            var answer = AppMessage.Show(this, "لديك تغييرات لم تُحفظ بعد. هل تريد حفظها وتطبيقها قبل المتابعة؟",
+                                         "الإعدادات", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
             if (answer == DialogResult.Cancel)
                 return false;
             if (answer == DialogResult.Yes)
@@ -77,6 +86,8 @@ namespace WeighbridgeBridge
             try
             {
                 fieldErrors.Clear();
+                foreach (Control input in new Control[] { port, endpoint, company, token, baud, bits, parity, fresh })
+                    SetFieldError(input, false);
                 var cfg = ReadSettings();
                 SettingsStore.Save(SettingsPath, cfg);
                 settingsNeedRepair = false;
@@ -87,7 +98,11 @@ namespace WeighbridgeBridge
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "تعذر حفظ الإعدادات");
+                AppMessage.Show(this,
+                                ex is InvalidDataException
+                                    ? ex.Message
+                                    : "تعذر حفظ الإعدادات. تحقق من صلاحية الكتابة ثم أعد المحاولة.",
+                                "تعذر حفظ الإعدادات");
                 return false;
             }
         }
@@ -180,6 +195,7 @@ namespace WeighbridgeBridge
                 returnsToken.Text = plain;
                 primaryCredentialUnavailable = !LocalSecrets.TryUnprotect(c.PrimaryTokenProtected, out plain);
                 token.Text = plain;
+                SetFieldError(token, primaryCredentialUnavailable);
                 fieldErrors.SetError(token,
                                      primaryCredentialUnavailable
                                          ? "تعذر فتح الرمز المحفوظ. أعد إدخاله؛ ستُحفظ قيمته الأصلية حتى استبداله."
@@ -229,6 +245,7 @@ namespace WeighbridgeBridge
                                  : ex.Message.Contains("HTTPS")                                  ? endpoint
                                                                                                  : (Control)parity;
                 fieldErrors.SetError(target, ex.Message);
+                SetFieldError(target, true);
                 target.Focus();
                 throw;
             }
