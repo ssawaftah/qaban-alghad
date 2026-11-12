@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -10,7 +11,9 @@ namespace WeighbridgeBridge
 {
     public sealed partial class MainForm
     {
-        readonly Button checkUpdate = new Button();
+        readonly Button updateInfo = new Button(), checkUpdate = new Button();
+        Form updateWindow;
+        Label updateVersion;
         Label versionCredit;
         static readonly Version CurrentVersion = Assembly.GetExecutingAssembly().GetName().Version;
         readonly CancellationTokenSource updateCancellation = new CancellationTokenSource();
@@ -19,12 +22,63 @@ namespace WeighbridgeBridge
 
         void BindUpdates()
         {
+            updateInfo.Click += (s, e) => ShowUpdateInformation();
+            Disposed += (s, e) => { if (updateWindow != null) updateWindow.Dispose(); };
             checkUpdate.Click += async (s, e) =>
             {
                 if (availableUpdate == null) await CheckUpdate();
                 else await InstallUpdate();
             };
             FormClosing += (s, e) => updateCancellation.Cancel();
+        }
+
+        void ShowUpdateInformation()
+        {
+            if (updateWindow == null)
+            {
+                updateWindow = new Form
+                {
+                    Text = "معلومات الإصدار والتحديث",
+                    ClientSize = new Size(355, 154),
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    AutoScaleMode = AutoScaleMode.Font,
+                    Font = Font,
+                    BackColor = Canvas,
+                    RightToLeft = RightToLeft.Yes,
+                    RightToLeftLayout = true,
+                    ShowInTaskbar = false,
+                    MaximizeBox = false,
+                    MinimizeBox = false
+                };
+                var content = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4,
+                    Padding = new Padding(12, 10, 12, 8)
+                };
+                content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 31));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+                content.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+                content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                content.Controls.Add(CenterLabel("قبان الغد " + CurrentVersion.ToString(3), 12, Ink, Canvas), 0, 0);
+                var author = CenterLabel("Abdelrahman Sawaftah", 9, Muted, Canvas);
+                author.RightToLeft = RightToLeft.No;
+                content.Controls.Add(author, 0, 1);
+                updateVersion = CenterLabel("", 9, Ink, Canvas);
+                content.Controls.Add(updateVersion, 0, 2);
+                StyleButton(checkUpdate, "التحقق من التحديثات", false);
+                checkUpdate.Size = new Size(190, 34);
+                checkUpdate.Margin = new Padding(0);
+                content.Controls.Add(Centered(checkUpdate), 0, 3);
+                updateWindow.Controls.Add(content);
+                updateWindow.AcceptButton = checkUpdate;
+                updateWindow.FormClosing += (s, e) =>
+                {
+                    if (updating && e.CloseReason == CloseReason.UserClosing) e.Cancel = true;
+                };
+            }
+            updateWindow.ShowDialog(this);
         }
 
         void ShowUpdateButton(string caption, bool offerUpdate)
@@ -48,12 +102,14 @@ namespace WeighbridgeBridge
             {
                 availableUpdate = await ReleaseClient.Check(CurrentVersion, updateCancellation.Token);
                 if (IsDisposed || updateCancellation.IsCancellationRequested) return;
+                updateVersion.Text = availableUpdate == null ? "" : "الإصدار المتاح " + availableUpdate.Version;
                 ShowUpdateButton(availableUpdate == null ? "لا توجد تحديثات" : "يوجد تحديث", availableUpdate != null);
             }
             catch (Exception ex)
             {
                 if (IsDisposed || updateCancellation.IsCancellationRequested) return;
                 availableUpdate = null;
+                updateVersion.Text = "";
                 WriteBackgroundLog("Update check: " + ex.GetType().Name);
                 ShowUpdateButton("تعذر التحقق", false);
             }
@@ -79,7 +135,7 @@ namespace WeighbridgeBridge
                 // Extraction and hashing run away from the serial polling/UI thread.
                 await Task.Run(() => UpdateTransaction.Extract(zip, stage, update.Version, update.Sha256));
                 if (updateCancellation.IsCancellationRequested) return;
-                if (MessageBox.Show("التحديث " + update.Version + " جاهز. سيتوقف القبان والإرسال ويُعاد فتح البرنامج. تثبيت الآن؟", "قبان الغد", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+                if (MessageBox.Show(updateWindow, "التحديث " + update.Version + " جاهز. سيتوقف القبان والإرسال ويُعاد فتح البرنامج. تثبيت الآن؟", "قبان الغد", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
                 StopReading();
                 var pending = Task.WhenAll(primary.Pending, returns.Pending);
                 if (await Task.WhenAny(pending, Task.Delay(10000)) != pending) throw new IOException("Requests are still closing.");
@@ -93,6 +149,8 @@ namespace WeighbridgeBridge
                     Process.Start(new ProcessStartInfo(runner, "--install \"" + Application.StartupPath + "\" " + Process.GetCurrentProcess().Id) { UseShellExecute = false });
                 }
                 catch { File.Delete(UpdateTransaction.JournalPath(Application.StartupPath)); throw; }
+                updating = false;
+                updateWindow.Close();
                 Close();
             }
             catch (Exception ex)
@@ -100,7 +158,7 @@ namespace WeighbridgeBridge
                 if (!updateCancellation.IsCancellationRequested)
                 {
                     WriteBackgroundLog("Update install: " + ex.GetType().Name);
-                    MessageBox.Show("لم يكتمل التحديث. النسخة الحالية وإعداداتك محفوظة.\n" + ex.Message, "قبان الغد");
+                    MessageBox.Show(updateWindow, "لم يكتمل التحديث. النسخة الحالية وإعداداتك محفوظة.\n" + ex.Message, "قبان الغد");
                 }
             }
             finally

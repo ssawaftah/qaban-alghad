@@ -41,11 +41,29 @@ namespace WeighbridgeBridge {
       Check(Math.Abs(overviewNav.Width-logsNav.Width)<=2&&Math.Abs(logsNav.Width-settingsNav.Width)<=2,"tabs equal width");
       Check(overviewNav.BackColor.G>overviewNav.BackColor.R&&overviewNav.ForeColor==Color.White,"default tab active green");
       Check(form.ClientSize.Width<=700&&form.ClientSize.Height<=340,"compact default window");
-      var updateButton=(Button)Field(form,"checkUpdate");
+      var updateButton=(Button)Field(form,"updateInfo");
       var credit=(Label)Field(form,"versionCredit");
       Check(updateButton.Visible&&credit.Visible,"update header visible on overview");
       Check(credit.Text==typeof(MainForm).Assembly.GetName().Version.ToString(3)+" - Abdelrahman Sawaftah","credit follows application version");
-      Check(updateButton.PointToScreen(Point.Empty).Y<credit.PointToScreen(Point.Empty).Y&&credit.PointToScreen(Point.Empty).Y<overviewNav.PointToScreen(Point.Empty).Y,"credit below update button and above tabs");
+      var iconPosition=updateButton.PointToScreen(Point.Empty);
+      Check(iconPosition.X<settingsNav.PointToScreen(Point.Empty).X+settingsNav.Width/2&&
+       iconPosition.Y<settingsNav.PointToScreen(Point.Empty).Y&&updateButton.Region!=null&&updateButton.Text=="!",
+       "circular update icon at top left");
+      Check(credit.PointToScreen(Point.Empty).Y>=start.PointToScreen(Point.Empty).Y+start.Height,
+       "version credit below actions");
+      bool informationOpened=false;
+      using(var timer=new System.Windows.Forms.Timer{Interval=100}){
+       timer.Tick+=(s,eventArgs)=>{
+        var information=Field(form,"updateWindow") as Form;
+        if(information==null||!information.Visible)return;
+        timer.Stop();
+        informationOpened=((Button)Field(form,"checkUpdate")).Visible&&
+         information.Text=="معلومات الإصدار والتحديث";
+        information.Close();
+       };
+       timer.Start();updateButton.PerformClick();timer.Stop();
+      }
+      Check(informationOpened,"icon opens version and update dialog");
       Size compactSize=form.ClientSize;
       Check(weight.Text=="kg","no dash or fabricated zero");
       foreach(var control in All(form))Check(!(control is CheckBox),"no send checkbox");

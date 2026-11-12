@@ -18,22 +18,29 @@ namespace WeighbridgeBridge
   void StyleButton(Button b,string text,bool primary){b.Text=text;b.Font=new Font("Segoe UI",10,FontStyle.Bold);b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderSize=0;b.UseVisualStyleBackColor=false;b.BackColor=primary?Accent:Color.FromArgb(231,237,241);b.ForeColor=primary?Color.White:Ink;b.FlatAppearance.MouseOverBackColor=primary?Color.FromArgb(0,105,98):Color.FromArgb(219,229,235);b.Height=44;b.Width=142;b.Margin=new Padding(5);b.Cursor=Cursors.Hand;b.TextAlign=ContentAlignment.MiddleCenter;b.AccessibleName=text;}
   FlowLayoutPanel Buttons(params Control[] buttons){var flow=new FlowLayoutPanel{AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,WrapContents=false,FlowDirection=FlowDirection.RightToLeft,BackColor=Canvas,Margin=new Padding(0)};flow.Controls.AddRange(buttons);return flow;}
   void BuildInterface(){
-   Text="قبان الغد";ClientSize=new Size(640,314);MinimumSize=new Size(600,344);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Segoe UI",10);AutoScaleMode=AutoScaleMode.Font;RightToLeft=RightToLeft.Yes;RightToLeftLayout=true;BackColor=Canvas;
+   Text="قبان الغد";ClientSize=new Size(640,304);MinimumSize=new Size(600,332);StartPosition=FormStartPosition.CenterScreen;Font=new Font("Segoe UI",10);AutoScaleMode=AutoScaleMode.Font;RightToLeft=RightToLeft.Yes;RightToLeftLayout=true;BackColor=Canvas;
    try{Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);}catch{Icon=SystemIcons.Application;}
-   var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Padding=new Padding(16,12,16,12),BackColor=Canvas};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,64));root.RowStyles.Add(new RowStyle(SizeType.Absolute,44));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(root);
-   var header=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=new Padding(0),BackColor=Canvas};
-   header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
-   header.RowStyles.Add(new RowStyle(SizeType.Absolute,36));
-   header.RowStyles.Add(new RowStyle(SizeType.Absolute,24));
-   StyleButton(checkUpdate,"التحقق من التحديثات",false);
-   checkUpdate.Width=200;
-   checkUpdate.Height=32;
-   checkUpdate.Margin=new Padding(0);
-   header.Controls.Add(Centered(checkUpdate),0,0);
-   versionCredit=CenterLabel(CurrentVersion.ToString(3)+" - Abdelrahman Sawaftah",9,Muted,Canvas);
-   versionCredit.RightToLeft=RightToLeft.No;
-   header.Controls.Add(versionCredit,0,1);
+   var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Padding=new Padding(16,10,16,8),BackColor=Canvas};
+   root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+   root.RowStyles.Add(new RowStyle(SizeType.Absolute,32));
+   root.RowStyles.Add(new RowStyle(SizeType.Absolute,44));
+   root.RowStyles.Add(new RowStyle(SizeType.Percent,100));
+   root.RowStyles.Add(new RowStyle(SizeType.Absolute,22));
+   Controls.Add(root);
+   var header=new Panel{Dock=DockStyle.Fill,Margin=new Padding(0),RightToLeft=RightToLeft.No,BackColor=Canvas};
+   StyleButton(updateInfo,"!",false);
+   updateInfo.Size=new Size(24,24);
+   updateInfo.Location=new Point(0,2);
+   updateInfo.Margin=new Padding(0);
+   updateInfo.Anchor=AnchorStyles.Top|AnchorStyles.Left;
+   updateInfo.AccessibleName="معلومات الإصدار والتحديث";
+   updateInfo.SizeChanged+=(sender,e)=>ShapeUpdateIcon();
+   ShapeUpdateIcon();
+   header.Controls.Add(updateInfo);
    root.Controls.Add(header,0,0);
+   versionCredit=CenterLabel(CurrentVersion.ToString(3)+" - Abdelrahman Sawaftah",8,Muted,Canvas);
+   versionCredit.RightToLeft=RightToLeft.No;
+   root.Controls.Add(versionCredit,0,3);
    var navigation=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=3,RowCount=1,BackColor=Canvas,Margin=new Padding(0),RightToLeft=RightToLeft.Yes};
    for(int column=0;column<3;column++)navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f/3));navigation.RowStyles.Add(new RowStyle(SizeType.Percent,100));
    StyleButton(overviewNav,"الوزن",true);StyleButton(logsNav,"السجل",false);StyleButton(settingsNav,"الإعدادات",false);
@@ -44,6 +51,14 @@ namespace WeighbridgeBridge
    overviewNav.Click+=(s,e)=>ShowScreen(overviewPage,overviewNav);settingsNav.Click+=(s,e)=>{if(settingsPage.Visible)return;using(var gate=new SettingsUnlockDialog()){if(gate.ShowDialog(this)==DialogResult.OK)ShowScreen(settingsPage,settingsNav);}};logsNav.Click+=(s,e)=>ShowScreen(logsPage,logsNav);
    Shown+=(sender,e)=>{compactClient=ClientSize;pageScale=compactClient.Width/640f;pageSizingReady=true;FitPageSize(overviewPage);};
    RefreshInterface();
+  }
+  void ShapeUpdateIcon(){
+   int diameter=Math.Min(updateInfo.Width,updateInfo.Height);
+   if(diameter<=0)return;
+   using(var circle=new System.Drawing.Drawing2D.GraphicsPath()){
+    circle.AddEllipse((updateInfo.Width-diameter)/2,(updateInfo.Height-diameter)/2,diameter,diameter);
+    updateInfo.Region=new Region(circle);
+   }
   }
   void ShowScreen(Panel page,Button selected){foreach(var p in new[]{overviewPage,settingsPage,logsPage})p.Visible=p==page;page.BringToFront();FitPageSize(page);foreach(var b in new[]{overviewNav,settingsNav,logsNav}){bool on=b==selected;b.BackColor=on?Accent:Color.FromArgb(231,237,241);b.ForeColor=on?Color.White:Ink;b.FlatAppearance.MouseOverBackColor=on?Color.FromArgb(0,105,98):Color.FromArgb(219,229,235);}}
   void FitPageSize(Panel page){
