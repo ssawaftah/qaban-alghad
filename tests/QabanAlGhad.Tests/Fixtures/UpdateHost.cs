@@ -13,7 +13,8 @@ internal static class UpdateHost
         {
             string file = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".qaban-update.json");
             var journal = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(File.ReadAllText(file));
-            if (Convert.ToString(journal["Token"]) != args[1]) return 9;
+            if (Convert.ToString(journal["Token"]) != args[1])
+                return 9;
             string receipt = Path.Combine(Convert.ToString(journal["Stage"]), "ready");
             File.WriteAllText(receipt + ".tmp", args[1]);
             File.Move(receipt + ".tmp", receipt);

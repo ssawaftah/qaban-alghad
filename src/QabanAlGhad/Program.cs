@@ -11,9 +11,17 @@ namespace WeighbridgeBridge
             string app = Application.StartupPath;
             bool pending = System.IO.File.Exists(UpdateTransaction.JournalPath(app));
             bool updated;
-            try { updated = UpdateTransaction.Startup(app, args); }
-            catch (System.Exception ex) { MessageBox.Show("تعذر استعادة التحديث.\n" + ex.Message); return 1; }
-            if (pending && !updated) return 0;
+            try
+            {
+                updated = UpdateTransaction.Startup(app, args);
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show("تعذر استعادة التحديث.\n" + ex.Message);
+                return 1;
+            }
+            if (pending && !updated)
+                return 0;
             bool first;
             using (var gate = new Mutex(true, "WeighbridgeBridge.SingleInstance", out first))
             {
@@ -25,7 +33,11 @@ namespace WeighbridgeBridge
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 var form = new MainForm();
-                form.Shown += (s, e) => { if (updated) UpdateTransaction.Ready(app); };
+                form.Shown += (s, e) =>
+                {
+                    if (updated)
+                        UpdateTransaction.Ready(app);
+                };
                 Application.Run(form);
                 return 0;
             }
