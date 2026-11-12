@@ -199,6 +199,7 @@ namespace WeighbridgeBridge
             }
             if (page == settingsPage)
                 ArrangeSettings();
+            RefreshInterface();
         }
         void FitPageSize(Panel page)
         {
@@ -292,7 +293,7 @@ namespace WeighbridgeBridge
             parity.Items.AddRange(new object[] { "None", "Even", "Odd", "Mark", "Space" });
             parity.FlatStyle = FlatStyle.Popup;
             parity.DrawMode = DrawMode.OwnerDrawFixed;
-            parity.FontChanged += (sender, e) => parity.ItemHeight = Math.Max(22, parity.Font.Height + 8);
+            parity.FontChanged += (sender, e) => parity.ItemHeight = Math.Max(18, parity.Font.Height + 2);
             parity.DrawItem += (sender, e) =>
             {
                 e.DrawBackground();
@@ -324,6 +325,7 @@ namespace WeighbridgeBridge
             StyleButton(save, "حفظ وتطبيق", true);
             var diagnose = new ActionButton();
             StyleButton(diagnose, "تشخيص الاتصال", false);
+            diagnose.Width = 152;
             diagnose.Click += async (sender, e) => await ShowDiagnostics(diagnose);
             var settingsActions = Centered(Buttons(save, diagnose));
             settingsActions.Dock = DockStyle.Bottom;
@@ -392,7 +394,8 @@ namespace WeighbridgeBridge
             }
             var choice = input as ComboBox;
             if (choice != null)
-                choice.FlatStyle = FlatStyle.Flat;
+                choice.FlatStyle =
+                    choice.DropDownStyle == ComboBoxStyle.DropDownList ? FlatStyle.Popup : FlatStyle.Flat;
             host.Controls.Add(input);
             host.Layout += (sender, e) =>
                 input.SetBounds(host.Padding.Left, Math.Max(0, (host.ClientSize.Height - input.Height) / 2),
@@ -427,30 +430,34 @@ namespace WeighbridgeBridge
             else
                 fields.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             settingsOuter.Height = (stacked ? sh + rh : sh) + (int)(8 * scale);
+            serverCard.Dock = stacked ? DockStyle.Fill : DockStyle.Top;
+            if (!stacked)
+                serverCard.Height = Math.Max(1, rh - serverCard.Margin.Vertical);
             fields.ResumeLayout();
         }
         void EditEndpoint()
         {
             using (var dialog = new Form())
             {
-                UiTheme.Dialog(dialog, "عنوان الإرسال", new Size(580, 188));
+                UiTheme.Dialog(dialog, "عنوان الإرسال", new Size(580, 160));
                 var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
                                                   Padding = new Padding(20, 12, 20, 12) };
                 root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
                 root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
                 root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
                 root.Controls.Add(UiTheme.Label("عنوان الإرسال الكامل", UiTheme.Strong), 0, 0);
-                var address = new TextBox { Dock = DockStyle.Fill,
-                                            Text = endpoint.Text,
-                                            RightToLeft = RightToLeft.No,
-                                            Multiline = true,
-                                            ScrollBars = ScrollBars.Horizontal,
-                                            WordWrap = false,
-                                            BackColor = Color.White,
-                                            ForeColor = Ink,
-                                            BorderStyle = BorderStyle.FixedSingle,
-                                            AccessibleName = "عنوان الإرسال الكامل" };
-                root.Controls.Add(address, 0, 1);
+                var address = new TextBox { Text = endpoint.Text,           RightToLeft = RightToLeft.No,
+                                            BackColor = Color.White,        ForeColor = Ink,
+                                            BorderStyle = BorderStyle.None, AccessibleName = "عنوان الإرسال الكامل" };
+                var addressHost = new InputSurface { Dock = DockStyle.Top, Height = 36,
+                                                     Padding = new Padding(10, 0, 10, 0), Margin = new Padding(0) };
+                addressHost.Controls.Add(address);
+                addressHost.Layout += (sender, e) => address.SetBounds(
+                    addressHost.Padding.Left, Math.Max(0, (addressHost.ClientSize.Height - address.Height) / 2),
+                    Math.Max(1, addressHost.ClientSize.Width - addressHost.Padding.Horizontal), address.Height);
+                address.Enter += (sender, e) => addressHost.Invalidate();
+                address.Leave += (sender, e) => addressHost.Invalidate();
+                root.Controls.Add(addressHost, 0, 1);
                 var apply = new ActionButton();
                 StyleButton(apply, "تطبيق", true);
                 apply.DialogResult = DialogResult.OK;
@@ -535,7 +542,7 @@ namespace WeighbridgeBridge
                 searchHint.SetBounds(8, 2, Math.Max(1, searchBox.Width - 16), Math.Max(1, searchBox.Height - 4));
             logSearch.TextChanged += (sender, e) => searchHint.Visible =
                 logSearch.TextLength == 0 && !logSearch.Focused;
-            logSearch.Enter += (sender, e) => searchHint.Visible = false;
+            logSearch.Enter += (sender, e) => searchHint.Visible = logSearch.TextLength == 0;
             logSearch.Leave += (sender, e) => searchHint.Visible = logSearch.TextLength == 0;
             tools.Controls.Add(searchBox);
             logFilter.Font = UiTheme.Body;
@@ -602,9 +609,10 @@ namespace WeighbridgeBridge
             StyleButton(open, "مجلد السجل", false);
             StyleButton(copy, "نسخ المحدد", false);
             StyleButton(diagnose, "تشخيص الاتصال", false);
+            diagnose.Width = 152;
             open.Width = 104;
             copy.Width = 104;
-            diagnose.Width = 118;
+            diagnose.Width = 152;
             open.Click += (sender, e) =>
             {
                 try
