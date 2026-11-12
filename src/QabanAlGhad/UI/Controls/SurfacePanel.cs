@@ -24,7 +24,7 @@ namespace WeighbridgeBridge
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (var path = new GraphicsPath())
             {
-                float d = 22, w = Width - 1, h = Height - 1;
+                float d = 10, w = Width - 1, h = Height - 1;
                 path.AddArc(0, 0, d, d, 180, 90);
                 path.AddArc(w - d, 0, d, d, 270, 90);
                 path.AddArc(w - d, h - d, d, d, 0, 90);

@@ -15,8 +15,8 @@ fi
 mkdir -p "$root/out"
 mapfile -t sources < <(find "$root/src/QabanAlGhad" -name '*.cs' -not -path '*/obj/*' -not -path '*/bin/*' | sort)
 refs=(-r:System.Windows.Forms -r:System.Drawing -r:System.Web.Extensions -r:System.Security -r:System.IO.Compression -r:System.IO.Compression.FileSystem)
-"${compiler[@]}" -langversion:5 -warnaserror -target:winexe -platform:anycpu "-win32icon:$root/src/QabanAlGhad/Assets/QabanAlGhad.ico" "-out:$root/out/QabanAlGhad.exe" "${refs[@]}" "${sources[@]}"
+"${compiler[@]}" -langversion:5 -warnaserror -target:winexe -platform:anycpu "-win32manifest:$root/src/QabanAlGhad/app.manifest" "-win32icon:$root/src/QabanAlGhad/Assets/QabanAlGhad.ico" "-out:$root/out/QabanAlGhad.exe" "${refs[@]}" "${sources[@]}"
 cp "$root/src/QabanAlGhad/App.config" "$root/out/QabanAlGhad.exe.config"
 mapfile -t checks < <(find "$root/tests/QabanAlGhad.Tests" -maxdepth 1 -name '*.cs' | sort)
-"${compiler[@]}" -langversion:5 -warnaserror -target:exe "-out:$root/out/QabanAlGhad.Tests.exe" "-r:$root/out/QabanAlGhad.exe" "${refs[@]}" "${checks[@]}"
+"${compiler[@]}" -langversion:5 -warnaserror -target:exe "-win32manifest:$root/src/QabanAlGhad/app.manifest" "-out:$root/out/QabanAlGhad.Tests.exe" "-r:$root/out/QabanAlGhad.exe" "${refs[@]}" "${checks[@]}"
 "${runtime[@]}" "$root/out/QabanAlGhad.Tests.exe" --all

@@ -140,16 +140,17 @@ namespace WeighbridgeBridge
                     "هذا تشخيص للحالة المحلية؛ لا يرسل طلب اختبار إلى الخادم.";
                 using (var dialog = new Form())
                 {
-                    UiTheme.Dialog(dialog, "تشخيص الاتصال", new Size(640, 540));
-                    var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
-                                                         Padding = new Padding(24, 16, 24, 16) };
+                    UiTheme.Dialog(dialog, "تشخيص الاتصال", new Size(600, 430));
+                    var content =
+                        new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
+                                               Padding = new Padding(20, 16, 20, 16), BackColor = Color.White };
                     content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-                    content.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+                    content.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
                     content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-                    content.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+                    content.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
                     content.Controls.Add(UiTheme.Label("تشخيص الاتصال", UiTheme.Heading), 0, 0);
-                    var card = new SurfacePanel { Dock = DockStyle.Fill, Surface = Color.White,
-                                                  Padding = new Padding(16), Margin = new Padding(0) };
+                    var card = new InputSurface { Dock = DockStyle.Fill, Padding = new Padding(10),
+                                                  Margin = new Padding(0, 8, 0, 8) };
                     var body = new TextBox { Multiline = true,
                                              ReadOnly = true,
                                              Dock = DockStyle.Fill,
@@ -166,11 +167,14 @@ namespace WeighbridgeBridge
                     card.Controls.Add(body);
                     content.Controls.Add(card, 0, 1);
                     var actions =
-                        new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
+                        new FlowLayoutPanel { Dock = DockStyle.Fill,        FlowDirection = FlowDirection.RightToLeft,
                                               RightToLeft = RightToLeft.No, WrapContents = false,
-                                              Padding = new Padding(0, 8, 0, 0) };
+                                              BackColor = Color.White,      Padding = new Padding(0),
+                                              Margin = new Padding(0) };
                     var copy = new ActionButton();
                     UiTheme.Button(copy, "نسخ التقرير", true);
+                    copy.Size = new Size(124, 36);
+                    copy.Margin = new Padding(0, 6, 8, 0);
                     copy.Click += (sender, e) =>
                     {
                         try
@@ -185,6 +189,8 @@ namespace WeighbridgeBridge
                     };
                     var export = new ActionButton();
                     UiTheme.Button(export, "حفظ التقرير", false);
+                    export.Size = new Size(124, 36);
+                    export.Margin = new Padding(0, 6, 8, 0);
                     export.Click += (sender, e) =>
                     {
                         using (var destination =
@@ -208,6 +214,8 @@ namespace WeighbridgeBridge
                     actions.Controls.Add(export);
                     var close = new ActionButton();
                     UiTheme.Button(close, "إغلاق", false);
+                    close.Size = new Size(88, 36);
+                    close.Margin = new Padding(0, 6, 8, 0);
                     close.DialogResult = DialogResult.Cancel;
                     actions.Controls.Add(close);
                     dialog.CancelButton = close;

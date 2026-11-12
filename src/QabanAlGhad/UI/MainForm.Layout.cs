@@ -10,7 +10,7 @@ namespace WeighbridgeBridge
     {
         static readonly Color Ink = UiTheme.Navy, Muted = UiTheme.Muted, Canvas = UiTheme.Canvas, Accent = UiTheme.Teal;
         Panel screenHost = new Panel(), overviewPage = new Panel(), settingsPage = new Panel(), logsPage = new Panel();
-        Button overviewNav = new ActionButton(), settingsNav = new ActionButton(), logsNav = new ActionButton();
+        Button overviewNav = new NavButton(), settingsNav = new NavButton(), logsNav = new NavButton();
         Label operationIndicator = new StatusBadge();
         readonly TextBox logSearch = new TextBox();
         readonly ComboBox logFilter = new ComboBox();
@@ -20,7 +20,7 @@ namespace WeighbridgeBridge
         float pageScale = 1;
         DataGridView readingGrid = new LogGrid(), eventGrid = new LogGrid(), activeLogGrid;
         TableLayoutPanel settingsOuter;
-        readonly Panel settingsViewport = new Panel(), logsViewport = new Panel();
+        readonly Panel settingsViewport = new Panel();
         SurfacePanel serialCard, serverCard;
 
         Label CenterLabel(string text, float size, Color color, Color background)
@@ -60,11 +60,12 @@ namespace WeighbridgeBridge
         void BuildInterface()
         {
             Text = "قبان الغد";
-            ClientSize = new Size(720, 420);
-            MinimumSize = new Size(680, 420);
+            ClientSize = new Size(640, 320);
+            MinimumSize = new Size(600, 340);
             StartPosition = FormStartPosition.CenterScreen;
             Font = UiTheme.Body;
-            AutoScaleMode = AutoScaleMode.Font;
+            AutoScaleDimensions = new SizeF(96, 96);
+            AutoScaleMode = AutoScaleMode.Dpi;
             RightToLeft = RightToLeft.Yes;
             RightToLeftLayout = true;
             BackColor = Canvas;
@@ -78,58 +79,45 @@ namespace WeighbridgeBridge
                 Icon = SystemIcons.Application;
             }
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4,
-                                              Padding = new Padding(24, 16, 24, 10), BackColor = Canvas };
+                                              Padding = new Padding(22, 10, 22, 6), BackColor = Canvas };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
             Controls.Add(root);
-            var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
-                                                RightToLeft = RightToLeft.Yes, Margin = new Padding(0, 0, 0, 10) };
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
+            var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                                                RightToLeft = RightToLeft.Yes, Margin = new Padding(0) };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 32));
             header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var mark = new BrandMark { Dock = DockStyle.Fill, Margin = new Padding(0, 5, 0, 5) };
-            header.Controls.Add(mark, 0, 0);
-            var identity = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
-                                                  Margin = new Padding(10, 0, 10, 0) };
-            identity.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            identity.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
-            identity.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
-            identity.Controls.Add(UiTheme.Label("قبان الغد", UiTheme.Heading), 0, 0);
-            var subtitle = UiTheme.Label("قراءة الوزن ومتابعة الإرسال", UiTheme.Small);
-            subtitle.ForeColor = Muted;
-            identity.Controls.Add(subtitle, 0, 1);
-            header.Controls.Add(identity, 1, 0);
+            var title = UiTheme.Label("قبان الغد", new Font("Segoe UI", 14, FontStyle.Bold));
+            header.Controls.Add(title, 0, 0);
             StyleButton(updateInfo, "!", false);
-            updateInfo.Size = new Size(30, 30);
+            updateInfo.Size = new Size(23, 23);
             updateInfo.Anchor = AnchorStyles.None;
             updateInfo.Margin = new Padding(0);
             updateInfo.AccessibleName = "معلومات الإصدار والتحديث";
             helpTips.SetToolTip(updateInfo, "معلومات الإصدار والتحديث");
             updateInfo.SizeChanged += (sender, e) => ShapeUpdateIcon();
             ShapeUpdateIcon();
-            header.Controls.Add(updateInfo, 2, 0);
+            header.Controls.Add(updateInfo, 1, 0);
             root.Controls.Add(header, 0, 0);
-            versionCredit = CenterLabel(CurrentVersion.ToString(3) + " - Abdelrahman Sawaftah", 8.5f, Muted, Canvas);
-            versionCredit.RightToLeft = RightToLeft.No;
-            root.Controls.Add(versionCredit, 0, 3);
-            var navigation =
-                new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3,         RowCount = 1,
-                                       BackColor = Canvas,    Margin = new Padding(0), RightToLeft = RightToLeft.Yes };
-            for (int i = 0; i < 3; i++)
-                navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3));
+            var navigation = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
+                                                    RightToLeft = RightToLeft.Yes, Margin = new Padding(0) };
+            navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 104));
+            navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 104));
+            navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 104));
+            navigation.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             navigation.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            StyleButton(overviewNav, "الوزن", true);
-            StyleButton(logsNav, "السجلات", false);
+            StyleButton(overviewNav, "الوزن", false);
+            StyleButton(logsNav, "السجل", false);
             StyleButton(settingsNav, "الإعدادات", false);
             var tabs = new[] { overviewNav, logsNav, settingsNav };
             for (int i = 0; i < tabs.Length; i++)
             {
                 tabs[i].Dock = DockStyle.Fill;
-                tabs[i].Margin = new Padding(4, 0, 4, 2);
+                tabs[i].Margin = new Padding(0);
                 tabs[i].TabIndex = i;
                 navigation.Controls.Add(tabs[i], i, 0);
             }
@@ -145,6 +133,9 @@ namespace WeighbridgeBridge
                 page.BackColor = Canvas;
                 screenHost.Controls.Add(page);
             }
+            versionCredit = CenterLabel(CurrentVersion.ToString(3) + " - Abdelrahman Sawaftah", 8, Muted, Canvas);
+            versionCredit.RightToLeft = RightToLeft.No;
+            root.Controls.Add(versionCredit, 0, 3);
             BuildOverview();
             BuildSettings();
             BuildLogs();
@@ -172,7 +163,7 @@ namespace WeighbridgeBridge
             Shown += (sender, e) =>
             {
                 compactClient = ClientSize;
-                pageScale = compactClient.Width / 720f;
+                pageScale = compactClient.Width / 640f;
                 pageSizingReady = true;
                 FitPageSize(overviewPage);
             };
@@ -201,10 +192,10 @@ namespace WeighbridgeBridge
             foreach (var button in new[] { overviewNav, settingsNav, logsNav })
             {
                 bool active = button == selected;
-                button.BackColor = active ? Accent : Color.White;
-                button.ForeColor = active ? Color.White : Ink;
-                button.FlatAppearance.MouseOverBackColor = active ? Color.FromArgb(0, 94, 93) : UiTheme.Soft;
-                button.FlatAppearance.MouseDownBackColor = button.FlatAppearance.MouseOverBackColor;
+                ((NavButton)button).Selected = active;
+                button.BackColor = Color.White;
+                button.ForeColor = active ? Accent : Muted;
+                button.Invalidate();
             }
             if (page == settingsPage)
                 ArrangeSettings();
@@ -215,8 +206,8 @@ namespace WeighbridgeBridge
                 return;
             var area = Screen.FromControl(this).WorkingArea;
             Size desired = page == overviewPage ? compactClient
-                           : page == logsPage   ? new Size((int)(1040 * pageScale), (int)(760 * pageScale))
-                                                : new Size((int)(960 * pageScale), (int)(760 * pageScale));
+                           : page == logsPage   ? new Size((int)(920 * pageScale), (int)(640 * pageScale))
+                                                : new Size((int)(800 * pageScale), (int)(600 * pageScale));
             int bw = Width - ClientSize.Width, bh = Height - ClientSize.Height;
             desired.Width = Math.Min(desired.Width, Math.Max(MinimumSize.Width - bw, area.Width - bw - 16));
             desired.Height = Math.Min(desired.Height, Math.Max(MinimumSize.Height - bh, area.Height - bh - 16));
@@ -228,70 +219,54 @@ namespace WeighbridgeBridge
         void BuildOverview()
         {
             var host = new TableLayoutPanel {
-                Dock = DockStyle.Fill,   ColumnCount = 1,   RowCount = 3, Padding = new Padding(0, 16, 0, 10),
+                Dock = DockStyle.Fill,   ColumnCount = 1,   RowCount = 3, Padding = new Padding(0, 12, 0, 0),
                 Margin = new Padding(0), BackColor = Canvas
             };
             host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            host.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
             host.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            host.RowStyles.Add(new RowStyle(SizeType.Absolute, 16));
             host.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
             overviewPage.Controls.Add(host);
-            var card = new SurfacePanel { Dock = DockStyle.Fill, Surface = Color.White, BorderColor = UiTheme.Border,
-                                          Padding = new Padding(16, 10, 16, 12), Margin = new Padding(0) };
-            var reading = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
-                                                 BackColor = Color.White, Margin = new Padding(0) };
-            reading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            reading.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-            reading.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            reading.Controls.Add(CenterLabel("الوزن الحالي", 10, Muted, Color.White), 0, 0);
+            host.Controls.Add(CenterLabel("الوزن الحالي", 9.5f, Muted, Canvas), 0, 0);
             weight.Text = "كغ";
-            weight.Font = new Font("Segoe UI", 44, FontStyle.Bold);
+            weight.Font = new Font("Segoe UI", 48, FontStyle.Bold);
             weight.ForeColor = Ink;
-            weight.BackColor = Color.White;
-            weight.TextAlign = ContentAlignment.MiddleCenter;
-            weight.RightToLeft = RightToLeft.No;
+            weight.BackColor = Canvas;
             weight.Dock = DockStyle.Fill;
+            weight.Margin = new Padding(0);
+            weight.RightToLeft = RightToLeft.No;
             weight.AccessibleName = "الوزن الحالي بالكيلوغرام";
-            reading.Controls.Add(weight, 0, 1);
-            card.Controls.Add(reading);
-            host.Controls.Add(card, 0, 0);
-            var actions = new TableLayoutPanel {
-                Dock = DockStyle.Fill,         ColumnCount = 5,   RowCount = 1, Margin = new Padding(0),
-                RightToLeft = RightToLeft.Yes, BackColor = Canvas
-            };
-            actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3));
-            actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 12));
-            actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3));
-            actions.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 12));
-            actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3));
-            actions.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            host.Controls.Add(weight, 0, 1);
+            var footer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
+                                                RightToLeft = RightToLeft.Yes, Margin = new Padding(0) };
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             StyleButton(start, "تشغيل", true);
             StyleButton(stop, "إيقاف", false);
-            stop.ForeColor = UiTheme.Danger;
             stop.Enabled = false;
-            start.AccessibleDescription = "بدء قراءة الميزان والإرسال";
-            stop.AccessibleDescription = "إيقاف قراءة الميزان والإرسال";
+            start.Dock = DockStyle.Fill;
+            stop.Dock = DockStyle.Fill;
+            start.Margin = new Padding(0, 6, 0, 6);
+            stop.Margin = new Padding(8, 6, 8, 6);
             operationIndicator.Text = "متوقف";
-            operationIndicator.Font = UiTheme.Strong;
-            operationIndicator.TextAlign = ContentAlignment.MiddleCenter;
+            operationIndicator.Font = UiTheme.Body;
             operationIndicator.AccessibleRole = AccessibleRole.StaticText;
             operationIndicator.TabStop = false;
-            foreach (Control item in new Control[] { start, stop, operationIndicator })
-            {
-                item.Dock = DockStyle.Fill;
-                item.Margin = new Padding(0);
-                item.RightToLeft = RightToLeft.Yes;
-            }
-            actions.Controls.Add(start, 0, 0);
-            actions.Controls.Add(stop, 2, 0);
-            actions.Controls.Add(operationIndicator, 4, 0);
-            host.Controls.Add(actions, 0, 2);
+            operationIndicator.Dock = DockStyle.Fill;
+            operationIndicator.Margin = new Padding(0, 6, 0, 6);
+            operationIndicator.RightToLeft = RightToLeft.Yes;
+            footer.Controls.Add(start, 0, 0);
+            footer.Controls.Add(stop, 1, 0);
+            footer.Controls.Add(operationIndicator, 2, 0);
+            host.Controls.Add(footer, 0, 2);
         }
         void BuildSettings()
         {
             settingsOuter =
-                new TableLayoutPanel { Dock = DockStyle.Top,   Height = 550,       ColumnCount = 1,
-                                       RowCount = 1,           BackColor = Canvas, Padding = new Padding(0, 16, 0, 0),
+                new TableLayoutPanel { Dock = DockStyle.Top,   Height = 392,       ColumnCount = 1,
+                                       RowCount = 1,           BackColor = Canvas, Padding = new Padding(0, 8, 0, 0),
                                        Margin = new Padding(0) };
             settingsOuter.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             settingsOuter.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -315,7 +290,7 @@ namespace WeighbridgeBridge
             ConfigureNumber(fresh, 1000, 30000);
             parity.DropDownStyle = ComboBoxStyle.DropDownList;
             parity.Items.AddRange(new object[] { "None", "Even", "Odd", "Mark", "Space" });
-            parity.FlatStyle = FlatStyle.Flat;
+            parity.FlatStyle = FlatStyle.Popup;
             parity.DrawMode = DrawMode.OwnerDrawFixed;
             parity.FontChanged += (sender, e) => parity.ItemHeight = Math.Max(22, parity.Font.Height + 8);
             parity.DrawItem += (sender, e) =>
@@ -352,7 +327,7 @@ namespace WeighbridgeBridge
             diagnose.Click += async (sender, e) => await ShowDiagnostics(diagnose);
             var settingsActions = Centered(Buttons(save, diagnose));
             settingsActions.Dock = DockStyle.Bottom;
-            settingsActions.Height = 64;
+            settingsActions.Height = 52;
             settingsPage.Controls.Add(settingsActions);
             settingsPage.SizeChanged += (sender, e) => ArrangeSettings();
             settingsViewport.SizeChanged += (sender, e) => ArrangeSettings();
@@ -361,7 +336,7 @@ namespace WeighbridgeBridge
         TableLayoutPanel SettingsCard(string title, int column)
         {
             var card = new SurfacePanel { Dock = DockStyle.Fill, Surface = Color.White, BorderColor = UiTheme.Border,
-                                          Padding = new Padding(20, 12, 20, 16), Margin = new Padding(6, 0, 6, 8) };
+                                          Padding = new Padding(14, 8, 14, 8), Margin = new Padding(5, 0, 5, 4) };
             if (column == 0)
                 serialCard = card;
             else
@@ -369,7 +344,7 @@ namespace WeighbridgeBridge
             var content =
                 new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, BackColor = Color.White };
             content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            content.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            content.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
             content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             var titleLabel = UiTheme.Label(title, new Font("Segoe UI", 13, FontStyle.Bold));
             content.Controls.Add(titleLabel, 0, 0);
@@ -384,16 +359,16 @@ namespace WeighbridgeBridge
         void MinimalField(TableLayoutPanel grid, string title, Control input)
         {
             int row = grid.RowCount++;
-            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
             var field = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
                                                BackColor = Color.White, Margin = new Padding(0, 0, 0, 8) };
             field.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            field.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+            field.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
             field.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             var label = UiTheme.Label(title, UiTheme.Small);
             label.ForeColor = Muted;
             field.Controls.Add(label, 0, 0);
-            var host = new InputSurface { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 28, 0),
+            var host = new InputSurface { Dock = DockStyle.Fill, Padding = new Padding(10, 0, 26, 0),
                                           Margin = new Padding(0, 0, 0, 4), AccessibleName = title };
             input.Dock = DockStyle.None;
             input.Anchor = AnchorStyles.Left | AnchorStyles.Right;
@@ -431,9 +406,9 @@ namespace WeighbridgeBridge
         {
             if (serialCard == null || serverCard == null || settingsOuter == null || fields.ClientSize.Width <= 0)
                 return;
-            float scale = Math.Max(1, Font.Height / (float)UiTheme.Body.Height);
-            bool stacked = fields.ClientSize.Width < 720 * scale;
-            int sh = (int)(482 * scale), rh = (int)(326 * scale);
+            float scale = Math.Max(pageScale, Font.Height / (float)UiTheme.Body.Height);
+            bool stacked = fields.ClientSize.Width < 640 * scale;
+            int sh = (int)(384 * scale), rh = (int)(256 * scale);
             fields.SuspendLayout();
             fields.ColumnStyles.Clear();
             fields.RowStyles.Clear();
@@ -451,19 +426,19 @@ namespace WeighbridgeBridge
             }
             else
                 fields.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            settingsOuter.Height = (stacked ? sh + rh : sh) + (int)(16 * scale);
+            settingsOuter.Height = (stacked ? sh + rh : sh) + (int)(8 * scale);
             fields.ResumeLayout();
         }
         void EditEndpoint()
         {
             using (var dialog = new Form())
             {
-                UiTheme.Dialog(dialog, "عنوان الإرسال", new Size(650, 220));
+                UiTheme.Dialog(dialog, "عنوان الإرسال", new Size(580, 188));
                 var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
-                                                  Padding = new Padding(24, 16, 24, 16) };
-                root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+                                                  Padding = new Padding(20, 12, 20, 12) };
+                root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
                 root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-                root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+                root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
                 root.Controls.Add(UiTheme.Label("عنوان الإرسال الكامل", UiTheme.Strong), 0, 0);
                 var address = new TextBox { Dock = DockStyle.Fill,
                                             Text = endpoint.Text,
@@ -491,84 +466,102 @@ namespace WeighbridgeBridge
                     endpoint.Text = address.Text.Trim();
             }
         }
+        NavButton readingsView, eventsView;
+        void SelectLogView(bool events)
+        {
+            readingGrid.Visible = !events;
+            eventGrid.Visible = events;
+            (events ? eventGrid : readingGrid).BringToFront();
+            readingsView.Selected = !events;
+            eventsView.Selected = events;
+            readingsView.ForeColor = events ? Muted : Accent;
+            eventsView.ForeColor = events ? Accent : Muted;
+            readingsView.Invalidate();
+            eventsView.Invalidate();
+            logFilter.Enabled = events;
+            activeLogGrid = events ? eventGrid : readingGrid;
+        }
         void BuildLogs()
         {
-            var outer = new TableLayoutPanel {
-                Dock = DockStyle.Top, Height = 440,       MinimumSize = new Size(0, 440),     ColumnCount = 1,
-                RowCount = 3,         BackColor = Canvas, Padding = new Padding(0, 16, 0, 0), Margin = new Padding(0)
+            var root = new TableLayoutPanel {
+                Dock = DockStyle.Fill,   ColumnCount = 1,   RowCount = 3, Padding = new Padding(0, 12, 0, 0),
+                Margin = new Padding(0), BackColor = Canvas
             };
-            Action sizeLogs = () =>
-            {
-                float scale = Math.Max(1, Font.Height / (float)UiTheme.Body.Height);
-                outer.Height = Math.Max((int)(500 * scale), logsViewport.ClientSize.Height);
-            };
-            logsViewport.SizeChanged += (sender, e) => sizeLogs();
-            FontChanged += (sender, e) => sizeLogs();
-            outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            outer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            outer.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
-            outer.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
-            logsViewport.Dock = DockStyle.Fill;
-            logsViewport.AutoScroll = true;
-            logsViewport.BackColor = Canvas;
-            logsViewport.Controls.Add(outer);
-            logsPage.Controls.Add(logsViewport);
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+            logsPage.Controls.Add(root);
             var tools = new FlowLayoutPanel { Dock = DockStyle.Fill,
                                               AutoSize = true,
                                               AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                                              MinimumSize = new Size(0, 56),
+                                              MinimumSize = new Size(0, 42),
                                               FlowDirection = FlowDirection.RightToLeft,
                                               RightToLeft = RightToLeft.No,
                                               WrapContents = true,
-                                              Margin = new Padding(0, 0, 0, 10) };
-            var searchTitle = UiTheme.Label("بحث في السجلات", UiTheme.Small);
-            searchTitle.AutoSize = true;
-            searchTitle.Margin = new Padding(6, 10, 6, 0);
-            tools.Controls.Add(searchTitle);
+                                              Margin = new Padding(0, 0, 0, 8) };
+            readingsView = new NavButton();
+            eventsView = new NavButton();
+            StyleButton(readingsView, "القراءات", false);
+            StyleButton(eventsView, "الأحداث", false);
+            readingsView.Size = eventsView.Size = new Size(86, 34);
+            readingsView.Margin = eventsView.Margin = new Padding(0, 2, 0, 2);
+            readingsView.Click += (sender, e) => SelectLogView(false);
+            eventsView.Click += (sender, e) => SelectLogView(true);
+            tools.Controls.Add(readingsView);
+            tools.Controls.Add(eventsView);
             logSearch.Font = UiTheme.Body;
-            logSearch.Width = 220;
             logSearch.BorderStyle = BorderStyle.None;
             logSearch.AccessibleName = "البحث في السجلات";
-            logSearch.Margin = new Padding(6, 8, 6, 6);
             logSearch.RightToLeft = RightToLeft.Yes;
+            helpTips.SetToolTip(logSearch, "بحث في السجل");
+            var searchBox = new InputSurface { Size = new Size(172, 32), Margin = new Padding(8, 3, 8, 3) };
+            searchBox.Controls.Add(logSearch);
+            searchBox.Layout += (sender, e) => logSearch.SetBounds(8, (searchBox.Height - logSearch.Height) / 2,
+                                                                   Math.Max(1, searchBox.Width - 16), logSearch.Height);
+            logSearch.Enter += (sender, e) => searchBox.Invalidate();
+            logSearch.Leave += (sender, e) => searchBox.Invalidate();
+            var searchHint = new Label { Text = "بحث في السجل",
+                                         Font = UiTheme.Small,
+                                         ForeColor = Muted,
+                                         BackColor = Color.White,
+                                         TextAlign = ContentAlignment.MiddleRight,
+                                         RightToLeft = RightToLeft.Yes,
+                                         Cursor = Cursors.IBeam };
+            searchBox.Controls.Add(searchHint);
+            searchHint.BringToFront();
+            searchHint.Click += (sender, e) => logSearch.Focus();
+            searchBox.Layout += (sender, e) =>
+                searchHint.SetBounds(8, 2, Math.Max(1, searchBox.Width - 16), Math.Max(1, searchBox.Height - 4));
+            logSearch.TextChanged += (sender, e) => searchHint.Visible =
+                logSearch.TextLength == 0 && !logSearch.Focused;
+            logSearch.Enter += (sender, e) => searchHint.Visible = false;
+            logSearch.Leave += (sender, e) => searchHint.Visible = logSearch.TextLength == 0;
+            tools.Controls.Add(searchBox);
             logFilter.Font = UiTheme.Body;
-            logFilter.Width = 154;
+            logFilter.Width = 136;
             logFilter.DropDownStyle = ComboBoxStyle.DropDownList;
-            logFilter.FlatStyle = FlatStyle.Flat;
-            logFilter.BackColor = Color.White;
+            logFilter.FlatStyle = FlatStyle.Popup;
             logFilter.Items.AddRange(new object[] { "جميع الأحداث", "الأعطال فقط" });
             logFilter.SelectedIndex = 0;
             logFilter.AccessibleName = "تصفية الأحداث";
+            logFilter.Margin = new Padding(4, 4, 4, 3);
             logFilter.RightToLeft = RightToLeft.Yes;
-            logFilter.Margin = new Padding(6, 8, 6, 6);
+            tools.Controls.Add(logFilter);
             var follow = new ActionButton();
-            StyleButton(follow, "المتابعة: مفعّلة", false);
+            StyleButton(follow, "متابعة تلقائية", false);
             follow.AccessibleName = "تبديل متابعة السجل";
-            follow.Width = 166;
-            follow.Height = 38;
+            follow.Size = new Size(112, 32);
+            follow.Margin = new Padding(4, 2, 4, 2);
             follow.Click += (sender, e) =>
             {
                 followLogs = !followLogs;
-                follow.Text = followLogs ? "المتابعة: مفعّلة" : "المتابعة: متوقفة";
+                follow.Text = followLogs ? "متابعة تلقائية" : "المتابعة متوقفة";
             };
+            tools.Controls.Add(follow);
             logSearch.TextChanged += (sender, e) => FilterLogs();
             logFilter.SelectedIndexChanged += (sender, e) => FilterLogs();
-            var searchBox = new InputSurface { Size = new Size(220, 40), Margin = new Padding(6, 2, 6, 6) };
-            searchBox.Controls.Add(logSearch);
-            searchBox.Layout += (sender, e) =>
-                logSearch.SetBounds(12, (searchBox.ClientSize.Height - logSearch.Height) / 2,
-                                    Math.Max(1, searchBox.ClientSize.Width - 24), logSearch.Height);
-            logSearch.Enter += (sender, e) => searchBox.Invalidate();
-            logSearch.Leave += (sender, e) => searchBox.Invalidate();
-            var filterBox = new InputSurface { Size = new Size(174, 40), Margin = new Padding(6, 2, 6, 6) };
-            filterBox.Controls.Add(logFilter);
-            filterBox.Layout += (sender, e) =>
-                logFilter.SetBounds(8, (filterBox.ClientSize.Height - logFilter.Height) / 2,
-                                    Math.Max(1, filterBox.ClientSize.Width - 16), logFilter.Height);
-            tools.Controls.Add(searchBox);
-            tools.Controls.Add(filterBox);
-            tools.Controls.Add(follow);
-            outer.Controls.Add(tools, 0, 0);
+            root.Controls.Add(tools, 0, 0);
             ConfigureLogGrid(readingGrid);
             readingGrid.Columns.Add("time", "الوقت");
             readingGrid.Columns.Add("weight", "الوزن (كغ)");
@@ -577,32 +570,41 @@ namespace WeighbridgeBridge
             readingGrid.Columns[0].DisplayIndex = 2;
             readingGrid.Columns[1].DisplayIndex = 1;
             readingGrid.Columns[2].DisplayIndex = 0;
+            readingGrid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             readingGrid.AccessibleName = "سجل القراءات";
-            ((LogGrid)readingGrid).EmptyText = "ستظهر القراءات هنا عند تشغيل الميزان.";
+            ((LogGrid)readingGrid).EmptyText = "بانتظار وصول القراءات";
             ConfigureLogGrid(eventGrid);
             eventGrid.Columns.Add("time", "الوقت");
-            eventGrid.Columns.Add("type", "نوع الحدث");
+            eventGrid.Columns.Add("type", "الحدث");
             eventGrid.Columns.Add("detail", "التفاصيل");
-            eventGrid.AccessibleName = "سجل الأحداث والأعطال";
-            ((LogGrid)eventGrid).EmptyText = "لا توجد أحداث مسجلة بعد.";
-            foreach (var grid in new[] { readingGrid, eventGrid })
-            {
-                grid.Columns[0].FillWeight = 22;
-                grid.Columns[1].FillWeight = 25;
-                grid.Columns[2].FillWeight = 53;
-            }
-            readingGrid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             eventGrid.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             eventGrid.Columns[2].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
-            outer.Controls.Add(LogCard("القراءات", readingGrid), 0, 1);
-            outer.Controls.Add(LogCard("الأحداث والأعطال", eventGrid), 0, 2);
+            eventGrid.AccessibleName = "سجل الأحداث والأعطال";
+            ((LogGrid)eventGrid).EmptyText = "لا توجد أحداث مسجلة";
+            foreach (var grid in new[] { readingGrid, eventGrid })
+            {
+                grid.Columns[0].FillWeight = 20;
+                grid.Columns[1].FillWeight = 22;
+                grid.Columns[2].FillWeight = 58;
+            }
+            var tableHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Margin = new Padding(0) };
+            tableHost.Controls.Add(readingGrid);
+            tableHost.Controls.Add(eventGrid);
+            root.Controls.Add(tableHost, 0, 1);
+            var footer =
+                new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             var open = new ActionButton();
             var copy = new ActionButton();
             var diagnose = new ActionButton();
-            StyleButton(open, "فتح مجلد السجل", false);
+            StyleButton(open, "مجلد السجل", false);
             StyleButton(copy, "نسخ المحدد", false);
-            StyleButton(diagnose, "تشخيص الاتصال", true);
-            open.Width = copy.Width = diagnose.Width = 136;
+            StyleButton(diagnose, "تشخيص الاتصال", false);
+            open.Width = 104;
+            copy.Width = 104;
+            diagnose.Width = 118;
             open.Click += (sender, e) =>
             {
                 try
@@ -627,36 +629,20 @@ namespace WeighbridgeBridge
                 }
                 catch
                 {
-                    AppMessage.Show(this, "تعذر نسخ الصفوف المحددة. حاول مرة أخرى.", "نسخ السجل");
+                    AppMessage.Show(this, "تعذر نسخ الصفوف المحددة.", "السجل");
                 }
             };
             diagnose.Click += async (sender, e) => await ShowDiagnostics(diagnose);
-            var footer = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 88, ColumnCount = 1, RowCount = 2,
-                                                BackColor = Canvas };
-            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
-            footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            footer.Controls.Add(Centered(Buttons(diagnose, copy, open)), 0, 0);
-            logsPage.Controls.Add(footer);
+            var buttons = Buttons(diagnose, copy, open);
+            buttons.Anchor = AnchorStyles.Right;
+            footer.Controls.Add(buttons, 1, 0);
             logTimes.Dock = DockStyle.Fill;
             logTimes.Font = UiTheme.Small;
             logTimes.ForeColor = Muted;
             logTimes.TextAlign = ContentAlignment.MiddleCenter;
-            footer.Controls.Add(logTimes, 0, 1);
-        }
-        Control LogCard(string title, DataGridView grid)
-        {
-            var card = new SurfacePanel { Dock = DockStyle.Fill, Surface = Color.White, BorderColor = UiTheme.Border,
-                                          Padding = new Padding(12), Margin = new Padding(0, 0, 0, 12) };
-            var content =
-                new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, BackColor = Color.White };
-            content.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-            content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            content.Controls.Add(UiTheme.Label(title, UiTheme.Strong), 0, 0);
-            content.Controls.Add(grid, 0, 1);
-            card.Controls.Add(content);
-            return card;
+            footer.Controls.Add(logTimes, 0, 0);
+            root.Controls.Add(footer, 0, 2);
+            SelectLogView(false);
         }
         void ConfigureLogGrid(DataGridView grid)
         {
@@ -677,16 +663,16 @@ namespace WeighbridgeBridge
             grid.ColumnHeadersDefaultCellStyle.BackColor = UiTheme.Soft;
             grid.ColumnHeadersDefaultCellStyle.ForeColor = Ink;
             grid.ColumnHeadersDefaultCellStyle.Font = UiTheme.Strong;
-            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(8, 9, 8, 9);
+            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(8, 6, 8, 6);
             grid.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             grid.DefaultCellStyle.Font = UiTheme.Body;
-            grid.DefaultCellStyle.Padding = new Padding(8, 7, 8, 7);
+            grid.DefaultCellStyle.Padding = new Padding(8, 4, 8, 4);
             grid.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             grid.DefaultCellStyle.ForeColor = Ink;
-            grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(216, 238, 237);
+            grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(229, 241, 241);
             grid.DefaultCellStyle.SelectionForeColor = Ink;
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 251, 253);
-            grid.RowTemplate.Height = 38;
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 252);
+            grid.RowTemplate.Height = 30;
             grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCellsExceptHeaders;
             grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;

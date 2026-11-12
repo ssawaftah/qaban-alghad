@@ -7,17 +7,17 @@ namespace WeighbridgeBridge
 {
     public static class UiTheme
     {
-        public static readonly Color Navy = Color.FromArgb(24, 43, 64);
-        public static readonly Color Teal = Color.FromArgb(0, 111, 109);
-        public static readonly Color Canvas = Color.FromArgb(243, 247, 250);
-        public static readonly Color Border = Color.FromArgb(217, 227, 234);
-        public static readonly Color Muted = Color.FromArgb(88, 107, 124);
-        public static readonly Color Soft = Color.FromArgb(233, 242, 245);
+        public static readonly Color Navy = Color.FromArgb(28, 44, 61);
+        public static readonly Color Teal = Color.FromArgb(25, 105, 105);
+        public static readonly Color Canvas = Color.White;
+        public static readonly Color Border = Color.FromArgb(224, 228, 234);
+        public static readonly Color Muted = Color.FromArgb(103, 113, 128);
+        public static readonly Color Soft = Color.FromArgb(245, 246, 248);
         public static readonly Color Danger = Color.FromArgb(170, 48, 64);
-        public static readonly Font Body = new Font("Segoe UI", 10.5f);
-        public static readonly Font Strong = new Font("Segoe UI", 10.5f, FontStyle.Bold);
-        public static readonly Font Heading = new Font("Segoe UI", 16, FontStyle.Bold);
-        public static readonly Font Small = new Font("Segoe UI", 9);
+        public static readonly Font Body = new Font("Segoe UI", 10f);
+        public static readonly Font Strong = new Font("Segoe UI", 10f, FontStyle.Bold);
+        public static readonly Font Heading = new Font("Segoe UI", 14, FontStyle.Bold);
+        public static readonly Font Small = new Font("Segoe UI", 9.5f);
 
         public static GraphicsPath Rounded(RectangleF bounds, float radius)
         {
@@ -40,7 +40,8 @@ namespace WeighbridgeBridge
             form.ForeColor = Navy;
             form.RightToLeft = RightToLeft.Yes;
             form.RightToLeftLayout = true;
-            form.AutoScaleMode = AutoScaleMode.Font;
+            form.AutoScaleDimensions = new SizeF(96, 96);
+            form.AutoScaleMode = AutoScaleMode.Dpi;
             form.StartPosition = FormStartPosition.CenterParent;
             form.MinimizeBox = false;
             form.MaximizeBox = false;
@@ -58,10 +59,10 @@ namespace WeighbridgeBridge
             button.UseVisualStyleBackColor = false;
             button.BackColor = primary ? Teal : Color.White;
             button.ForeColor = primary ? Color.White : Navy;
-            button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(0, 94, 93) : Soft;
+            button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(19, 84, 84) : Soft;
             button.FlatAppearance.MouseDownBackColor = button.FlatAppearance.MouseOverBackColor;
-            button.Size = new Size(154, 44);
-            button.Margin = new Padding(6);
+            button.Size = new Size(126, 36);
+            button.Margin = new Padding(4);
             button.Cursor = Cursors.Hand;
             button.TextAlign = ContentAlignment.MiddleCenter;
             button.RightToLeft = RightToLeft.Yes;
@@ -106,6 +107,7 @@ namespace WeighbridgeBridge
         bool hovering, pressing;
         public ActionButton()
         {
+            AccessibleRole = AccessibleRole.PushButton;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer,
                      true);
         }
@@ -153,7 +155,7 @@ namespace WeighbridgeBridge
                          : hovering ? FlatAppearance.MouseOverBackColor
                                     : BackColor;
             Color ink = Enabled ? ForeColor : UiTheme.Muted;
-            using (var path = UiTheme.Rounded(new RectangleF(1, 1, Width - 3, Height - 3), 8 * e.Graphics.DpiX / 96))
+            using (var path = UiTheme.Rounded(new RectangleF(1, 1, Width - 3, Height - 3), 5 * e.Graphics.DpiX / 96))
             {
                 using (var brush = new SolidBrush(fill)) e.Graphics.FillPath(brush, path);
                 using (var pen = new Pen(Focused && ShowFocusCues   ? UiTheme.Teal
@@ -179,13 +181,15 @@ namespace WeighbridgeBridge
         {
             if (Width < 3 || Height < 3)
                 return;
+            e.Graphics.Clear(Parent == null ? UiTheme.Canvas : Parent.BackColor);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using (var path = UiTheme.Rounded(new RectangleF(1, 1, Width - 3, Height - 3),
-                                              8 * e.Graphics.DpiX / 96)) using (var brush = new SolidBrush(BackColor))
-                e.Graphics.FillPath(brush, path);
-            TextRenderer.DrawText(e.Graphics, Text, Font, Rectangle.Inflate(ClientRectangle, -8, -2), ForeColor,
-                                  TextFormatFlags.RightToLeft | TextFormatFlags.HorizontalCenter |
-                                      TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            int dot = Math.Max(6, (int)(7 * e.Graphics.DpiX / 96));
+            using (var brush = new SolidBrush(ForeColor))
+                e.Graphics.FillEllipse(brush, Width - dot - 4, (Height - dot) / 2, dot, dot);
+            TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(0, 0, Math.Max(1, Width - dot - 12), Height),
+                                  ForeColor,
+                                  TextFormatFlags.RightToLeft | TextFormatFlags.Right | TextFormatFlags.VerticalCenter |
+                                      TextFormatFlags.EndEllipsis);
         }
     }
 
@@ -209,35 +213,6 @@ namespace WeighbridgeBridge
                                   : ContainsFocus ? UiTheme.Teal
                                                   : UiTheme.Border,
                                   ContainsFocus ? 1.5f : 1)) e.Graphics.DrawPath(pen, path);
-        }
-    }
-}
-
-namespace WeighbridgeBridge
-{
-    public sealed class BrandMark : Control
-    {
-        public BrandMark()
-        {
-            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer,
-                     true);
-        }
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            if (Width < 8 || Height < 8)
-                return;
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            float s = Math.Min(Width, Height), x = (Width - s) / 2, y = (Height - s) / 2;
-            using (var path = UiTheme.Rounded(new RectangleF(x, y, s - 1, s - 1), 10)) using (
-                var fill = new SolidBrush(UiTheme.Teal)) e.Graphics.FillPath(fill, path);
-            using (var pen = new Pen(Color.White, Math.Max(1.5f, s / 22)))
-            {
-                e.Graphics.DrawLine(pen, x + s * .24f, y + s * .33f, x + s * .76f, y + s * .33f);
-                e.Graphics.DrawLine(pen, x + s * .3f, y + s * .33f, x + s * .3f, y + s * .62f);
-                e.Graphics.DrawLine(pen, x + s * .7f, y + s * .33f, x + s * .7f, y + s * .62f);
-                e.Graphics.DrawLine(pen, x + s * .22f, y + s * .67f, x + s * .78f, y + s * .67f);
-                e.Graphics.DrawLine(pen, x + s * .4f, y + s * .76f, x + s * .6f, y + s * .76f);
-            }
         }
     }
 }
@@ -294,6 +269,82 @@ namespace WeighbridgeBridge
                                   UiTheme.Muted,
                                   TextFormatFlags.RightToLeft | TextFormatFlags.HorizontalCenter |
                                       TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+        }
+    }
+}
+
+namespace WeighbridgeBridge
+{
+    public sealed class NavButton : ActionButton
+    {
+        public bool Selected { get; set; }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent == null ? Color.White : Parent.BackColor);
+            var color = Selected ? UiTheme.Teal : UiTheme.Muted;
+            TextRenderer.DrawText(e.Graphics, Text, Font, Rectangle.Inflate(ClientRectangle, -4, -2), color,
+                                  TextFormatFlags.RightToLeft | TextFormatFlags.HorizontalCenter |
+                                      TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            if (Selected)
+                using (var brush = new SolidBrush(UiTheme.Teal))
+                    e.Graphics.FillRectangle(brush, 8, Height - 3, Width - 16, 2);
+            if (Focused && ShowFocusCues)
+                ControlPaint.DrawFocusRectangle(e.Graphics, Rectangle.Inflate(ClientRectangle, -3, -5), color,
+                                                Color.White);
+        }
+    }
+
+    public sealed class WeightDisplay : Label
+    {
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(BackColor);
+            bool empty = string.IsNullOrWhiteSpace(Text) || Text.Trim() == "كغ";
+            if (empty)
+            {
+                using (var placeholder = new Font(Font.FontFamily, Math.Max(22, Font.Size * .55f), FontStyle.Regular))
+                    TextRenderer.DrawText(e.Graphics, "—", placeholder, ClientRectangle, Color.FromArgb(165, 172, 183),
+                                          TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                return;
+            }
+            string number = Text.EndsWith(" كغ", StringComparison.Ordinal) ? Text.Substring(0, Text.Length - 3) : Text;
+            using (var unit = new Font(Font.FontFamily, Math.Max(11, Font.Size * .25f), FontStyle.Regular))
+            {
+                int gap = Math.Max(10, (int)(Font.Size * .25f));
+                int unitWidth =
+                    TextRenderer.MeasureText(e.Graphics, "كغ", unit, Size.Empty, TextFormatFlags.NoPadding).Width;
+                float size = Font.Size;
+                Font numberFont = new Font(Font.FontFamily, size, FontStyle.Bold);
+                try
+                {
+                    while (size > 18 && TextRenderer.MeasureText(e.Graphics, number, numberFont, Size.Empty,
+                                                                 TextFormatFlags.NoPadding)
+                                                    .Width +
+                                                unitWidth + gap >
+                                            Width - 24)
+                    {
+                        size -= 2;
+                        numberFont.Dispose();
+                        numberFont = new Font(Font.FontFamily, size, FontStyle.Bold);
+                    }
+                    int numberWidth =
+                        TextRenderer.MeasureText(e.Graphics, number, numberFont, Size.Empty, TextFormatFlags.NoPadding)
+                            .Width;
+                    int x = Math.Max(0, (Width - numberWidth - unitWidth - gap) / 2);
+                    TextRenderer.DrawText(e.Graphics, number, numberFont, new Rectangle(x, 0, numberWidth + 4, Height),
+                                          ForeColor,
+                                          TextFormatFlags.NoPadding | TextFormatFlags.HorizontalCenter |
+                                              TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+                    TextRenderer.DrawText(e.Graphics, "كغ", unit,
+                                          new Rectangle(x + numberWidth + gap, 0, unitWidth + 4, Height), UiTheme.Muted,
+                                          TextFormatFlags.NoPadding | TextFormatFlags.RightToLeft |
+                                              TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+                finally
+                {
+                    numberFont.Dispose();
+                }
+            }
         }
     }
 }
