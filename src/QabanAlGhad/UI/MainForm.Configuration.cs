@@ -94,6 +94,8 @@ namespace WeighbridgeBridge
         void RefreshPorts()
         {
             string selected = port.Text;
+            bool wasApplying = applyingSettings;
+            applyingSettings = true;
             try
             {
                 var names = SerialPort.GetPortNames();
@@ -105,6 +107,10 @@ namespace WeighbridgeBridge
             catch (Exception)
             {
                 helpTips.SetToolTip(port, "تعذر تعداد المنافذ. يمكن إدخال اسم المنفذ يدويًا.");
+            }
+            finally
+            {
+                applyingSettings = wasApplying;
             }
         }
         string SettingsPath

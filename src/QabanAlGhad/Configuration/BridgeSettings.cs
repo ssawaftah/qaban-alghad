@@ -59,6 +59,14 @@ namespace WeighbridgeBridge
             {
                 throw CorruptSettings(ex);
             }
+            catch (Exception ex)
+            {
+                // Framework TypeDescriptor can wrap failed numeric conversion in a plain Exception.
+                for (Exception cause = ex.InnerException; cause != null; cause = cause.InnerException)
+                    if (cause is OverflowException || cause is FormatException || cause is InvalidCastException)
+                        throw CorruptSettings(ex);
+                throw;
+            }
         }
 
         static InvalidDataException CorruptSettings(Exception cause)

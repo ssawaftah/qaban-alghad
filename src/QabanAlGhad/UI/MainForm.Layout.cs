@@ -8,7 +8,7 @@ namespace WeighbridgeBridge
 {
     public sealed partial class MainForm
     {
-        static readonly Color Ink = Color.FromArgb(24, 43, 57), Muted = Color.FromArgb(110, 124, 135),
+        static readonly Color Ink = Color.FromArgb(24, 43, 57), Muted = Color.FromArgb(96, 110, 121),
                               Canvas = Color.FromArgb(246, 248, 250), Accent = Color.FromArgb(0, 121, 113);
         Panel screenHost = new Panel(), overviewPage = new Panel(), settingsPage = new Panel(), logsPage = new Panel();
         Button overviewNav = new Button(), settingsNav = new Button(), logsNav = new Button();
@@ -97,6 +97,7 @@ namespace WeighbridgeBridge
             updateInfo.Margin = new Padding(0);
             updateInfo.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             updateInfo.AccessibleName = "معلومات الإصدار والتحديث";
+            helpTips.SetToolTip(updateInfo, "معلومات الإصدار والتحديث");
             updateInfo.SizeChanged += (sender, e) => ShapeUpdateIcon();
             ShapeUpdateIcon();
             header.Controls.Add(updateInfo);
@@ -529,7 +530,7 @@ namespace WeighbridgeBridge
                 operationIndicator.Text = "متوقف بعد فشل التحديث";
             if (primaryCredentialUnavailable && !running)
                 operationIndicator.Text = "راجع رمز النظام";
-            operationIndicator.BackColor = active    ? Color.FromArgb(30, 144, 86)
+            operationIndicator.BackColor = active    ? Color.FromArgb(22, 120, 70)
                                            : fault   ? Color.FromArgb(186, 58, 64)
                                            : running ? Color.FromArgb(150, 100, 0)
                                                      : Color.FromArgb(100, 112, 124);
