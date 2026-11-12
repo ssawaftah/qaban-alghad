@@ -11,7 +11,22 @@ namespace WeighbridgeBridge
 {
     public sealed partial class MainForm
     {
-        readonly Button updateInfo = new Button(), checkUpdate = new Button();
+        sealed class UpdateInfoButton : Button
+        {
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                e.Graphics.Clear(Canvas);
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                var circle = Rectangle.Inflate(ClientRectangle, -2, -2);
+                var outline = Focused && ShowFocusCues ? Accent : Muted;
+                using (var pen = new Pen(outline, 1.25f))
+                    e.Graphics.DrawEllipse(pen, circle);
+                TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, Ink,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            }
+        }
+
+        readonly Button updateInfo = new UpdateInfoButton(), checkUpdate = new Button();
         Form updateWindow;
         Label updateVersion;
         Label versionCredit;
