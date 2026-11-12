@@ -528,22 +528,12 @@ namespace WeighbridgeBridge
                                                                    Math.Max(1, searchBox.Width - 16), logSearch.Height);
             logSearch.Enter += (sender, e) => searchBox.Invalidate();
             logSearch.Leave += (sender, e) => searchBox.Invalidate();
-            var searchHint = new Label { Text = "بحث في السجل",
-                                         Font = UiTheme.Small,
-                                         ForeColor = Muted,
-                                         BackColor = Color.White,
-                                         TextAlign = ContentAlignment.MiddleRight,
-                                         RightToLeft = RightToLeft.Yes,
-                                         Cursor = Cursors.IBeam };
-            searchBox.Controls.Add(searchHint);
-            searchHint.BringToFront();
-            searchHint.Click += (sender, e) => logSearch.Focus();
-            searchBox.Layout += (sender, e) =>
-                searchHint.SetBounds(8, 2, Math.Max(1, searchBox.Width - 16), Math.Max(1, searchBox.Height - 4));
-            logSearch.TextChanged += (sender, e) => searchHint.Visible =
-                logSearch.TextLength == 0 && !logSearch.Focused;
-            logSearch.Enter += (sender, e) => searchHint.Visible = logSearch.TextLength == 0;
-            logSearch.Leave += (sender, e) => searchHint.Visible = logSearch.TextLength == 0;
+            var searchCaption = UiTheme.Label("بحث", UiTheme.Small);
+            searchCaption.Dock = DockStyle.None;
+            searchCaption.Size = new Size(34, 32);
+            searchCaption.Margin = new Padding(4, 3, 0, 3);
+            searchCaption.TextAlign = ContentAlignment.MiddleCenter;
+            tools.Controls.Add(searchCaption);
             tools.Controls.Add(searchBox);
             logFilter.Font = UiTheme.Body;
             logFilter.Width = 136;
