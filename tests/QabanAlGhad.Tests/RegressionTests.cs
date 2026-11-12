@@ -200,7 +200,7 @@ namespace WeighbridgeBridge
             finally
             {
                 session.Stop();
-                await session.Completion;
+                session.Completion.GetAwaiter().GetResult();
             }
             Check(fake.Closed, "stop disposes connection before completing");
             session.Start(new Settings());

@@ -31,6 +31,14 @@ namespace WeighbridgeBridge
             {
                 return false;
             }
+            catch (System.Security.SecurityException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
             catch (CryptographicException)
             {
                 return false;

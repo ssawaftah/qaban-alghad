@@ -233,10 +233,16 @@ namespace WeighbridgeBridge
                 Check(!primary.Ready && !returns.Ready, "stop shuts both channels");
             }
             now = 0;
-            using (var healthy = new MiniServer(body => Task.FromResult(Tuple.Create(200, "{\"accepted\":true," +
-                                                                                          "\"weightKg\":0}")))) using (
-                var failing = new MiniServer(
-                    body => Task.FromResult(Tuple.Create(500, "{\"error\":\"Failed to update weight scale\"}"))))
+            using (
+                var healthy = new MiniServer(
+                    body => Task.FromResult(Tuple.Create(
+                        200,
+                        "{\"accepted\":true," +
+                            "\"weightKg\":0}")))) using (var failing =
+                                                             new MiniServer(
+                                                                 body => Task.FromResult(Tuple.Create(
+                                                                     500,
+                                                                     "{\"error\":\"Failed to update weight scale\"}"))))
             {
                 var first = new OutputChannel(OutputKind.Primary, "primary", () => now, null, null);
                 var second = new OutputChannel(OutputKind.Returns, "returns", () => now, null, null);
