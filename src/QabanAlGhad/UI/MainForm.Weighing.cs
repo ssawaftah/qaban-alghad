@@ -91,7 +91,7 @@ namespace WeighbridgeBridge {
        (Parity)Enum.Parse(typeof(Parity),configuration.Parity),configuration.DataBits,StopBits.One);
      connection.Open();
      ReportSerial("تم فتح منفذ الميزان.",false);
-     var frames=new Frames();
+     var frames=new Frames(true);
      long lastData=clock.ElapsedMilliseconds;
      int silenceLimit=Math.Max(5000,configuration.Freshness*2);
      while(!cancel.IsCancellationRequested){

@@ -20,7 +20,17 @@ namespace WeighbridgeBridge {
    if(!string.IsNullOrWhiteSpace(bearer))request.Headers[HttpRequestHeader.Authorization]="Bearer "+bearer.Trim();
    byte[] bytes=Encoding.UTF8.GetBytes(json);request.ContentLength=bytes.Length;if(onRequest!=null)onRequest(request);
    using(var timeout=new CancellationTokenSource(Math.Max(1,timeoutMs)))using(timeout.Token.Register(()=>request.Abort())) {
-    using(var stream=await request.GetRequestStreamAsync())await stream.WriteAsync(bytes,0,bytes.Length);
+    try{
+     using(var stream=await request.GetRequestStreamAsync())await stream.WriteAsync(bytes,0,bytes.Length);
+    }catch(WebException ex){
+     if(timeout.IsCancellationRequested&&ex.Status==WebExceptionStatus.RequestCanceled)
+      throw new WebException("Request write deadline expired.",ex,WebExceptionStatus.Timeout,null);
+     throw;
+    }catch(IOException ex){
+     if(timeout.IsCancellationRequested)
+      throw new WebException("Request write deadline expired.",ex,WebExceptionStatus.Timeout,null);
+     throw;
+    }
     if(onWritten!=null)onWritten();
     if(sendOnly){
      request.Abort();

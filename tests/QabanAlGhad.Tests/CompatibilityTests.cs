@@ -29,6 +29,10 @@ namespace WeighbridgeBridge {
    string[] valid={"ST,GS,+000120kg","ST,GS,-000020kg","ST,GS,1,+120kg","1,ST,120,kg","ST,NT,120,kg","ST,GS,   +120.50 kg"};
    decimal[] expected={120,-20,120,120,120,120.50m};
    for(int i=0;i<valid.Length;i++)Check(Protocol.Parse(valid[i],out weight)&&weight==expected[i],"legacy format "+i);
+   var startup=new Frames(true);
+   Check(!startup.Push("g\r\n",out weight,out raw)&&raw=="","opening mid-frame ignores first suffix");
+   Check(startup.Push("ST,NT, -40,kg\r\n",out weight,out raw)&&weight==-40,"next complete negative net frame stays valid");
+   Check(!startup.Push("g\r\n",out weight,out raw)&&raw=="g","later malformed frame is still reported");
    var frames=new Frames();
    foreach(char c in "ST,GS,+00120kg\r"){
     bool ok=frames.Push(c.ToString(),out weight,out raw);
@@ -186,7 +190,22 @@ namespace WeighbridgeBridge {
     bool written=false;reply=await ApiTransport.SendAsync(url,Protocol.Payload("1",200),"",3000,null,()=>written=true);
     Check(written&&reply.StatusCode==200,"same stable value transmitted again with write feedback");
     await serve;
-    Console.WriteLine("PASS: "+count+" loopback HTTP transport assertions; no production requests");
+    var silentTls=new TcpListener(IPAddress.Loopback,0);
+   silentTls.Start();
+   try{
+    string silentUrl="https://127.0.0.1:"+((IPEndPoint)silentTls.LocalEndpoint).Port+"/";
+    var accept=silentTls.AcceptTcpClientAsync();
+    var request=ApiTransport.SendAsync(silentUrl,Protocol.Payload("1",120),"",1000,null,null,true);
+    if(await Task.WhenAny(accept,request,Task.Delay(5000))!=accept)
+     throw new Exception("TLS deadline fixture did not connect.");
+    using(await accept){
+     bool writeTimeout=false;
+     try{await request;}
+     catch(WebException ex){writeTimeout=ex.Status==WebExceptionStatus.Timeout;}
+     Check(writeTimeout,"stalled TLS handshake reports write timeout");
+    }
+   }finally{silentTls.Stop();}
+   Console.WriteLine("PASS: "+count+" loopback HTTP transport assertions; no production requests");
    }
   }
  }

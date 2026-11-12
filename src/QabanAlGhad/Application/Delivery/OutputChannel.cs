@@ -74,9 +74,18 @@ namespace WeighbridgeBridge {
      Schedule.PeriodicSuccess();
      nextResponseLog=0;
     }
-   }catch(WebException ex){if(ex.Response!=null)ex.Response.Dispose();if(Ready&&gen==generation){TransportFailed(ex.Status.ToString());}}
+   }catch(WebException ex){if(ex.Response!=null)ex.Response.Dispose();if(Ready&&gen==generation){TransportFailed(DescribeTransportIssue(ex.Status));}}
    catch(Exception ex){if(Ready&&gen==generation){TransportFailed(ex.GetType().Name);}}
    finally{if(active==request)active=null;Busy=false;}
+  }
+  static string DescribeTransportIssue(WebExceptionStatus status){
+   switch(status){
+    case WebExceptionStatus.Timeout: return "انتهت مهلة الاتصال أو الكتابة (Timeout)";
+    case WebExceptionStatus.SecureChannelFailure: return "تعذر إنشاء اتصال TLS (SecureChannelFailure)";
+    case WebExceptionStatus.TrustFailure: return "تعذر التحقق من شهادة الخادم (TrustFailure)";
+    case WebExceptionStatus.NameResolutionFailure: return "تعذر العثور على عنوان الخادم (NameResolutionFailure)";
+    default: return status.ToString();
+   }
   }
   void TransportFailed(string issue){
    Feedback.NoReply();
