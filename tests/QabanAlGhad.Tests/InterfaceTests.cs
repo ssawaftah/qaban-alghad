@@ -144,7 +144,8 @@ namespace WeighbridgeBridge
                                       "log toolbar wraps without clipping at scale " + factor);
                         Call(form, "SelectLogView", false);
                         Check(((DataGridView)Field(form, "readingGrid")).Height >= 70 * scale,
-                              "reading table remains usable at scale " + factor);
+                              "reading table remains usable at scale " + factor + ": " +
+                                  ((DataGridView)Field(form, "readingGrid")).Height);
                         Capture(form, "ui-readings-" + factor + ".png");
                         Call(form, "SelectLogView", true);
                         Check(((DataGridView)Field(form, "eventGrid")).Height >= 70 * scale,
@@ -162,6 +163,7 @@ namespace WeighbridgeBridge
                     catch (Exception ex)
                     {
                         failure = ex;
+                        Capture(form, "ui-failure-" + factor + ".png");
                     }
                     finally
                     {

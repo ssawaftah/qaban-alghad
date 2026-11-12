@@ -490,7 +490,7 @@ namespace WeighbridgeBridge
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
             logsPage.Controls.Add(root);
             var tools = new FlowLayoutPanel { Dock = DockStyle.Fill,
                                               AutoSize = true,
@@ -639,6 +639,7 @@ namespace WeighbridgeBridge
             logTimes.Dock = DockStyle.Fill;
             logTimes.Font = UiTheme.Small;
             logTimes.ForeColor = Muted;
+            logTimes.AutoEllipsis = true;
             logTimes.TextAlign = ContentAlignment.MiddleCenter;
             footer.Controls.Add(logTimes, 0, 0);
             root.Controls.Add(footer, 0, 2);
