@@ -497,8 +497,13 @@ namespace WeighbridgeBridge
                 Dock = DockStyle.Top, Height = 440,       MinimumSize = new Size(0, 440),     ColumnCount = 1,
                 RowCount = 3,         BackColor = Canvas, Padding = new Padding(0, 16, 0, 0), Margin = new Padding(0)
             };
-            logsViewport.SizeChanged += (sender, e) => outer.Height =
-                Math.Max(outer.MinimumSize.Height, logsViewport.ClientSize.Height);
+            Action sizeLogs = () =>
+            {
+                float scale = Math.Max(1, Font.Height / (float)UiTheme.Body.Height);
+                outer.Height = Math.Max((int)(500 * scale), logsViewport.ClientSize.Height);
+            };
+            logsViewport.SizeChanged += (sender, e) => sizeLogs();
+            FontChanged += (sender, e) => sizeLogs();
             outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             outer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
@@ -687,6 +692,12 @@ namespace WeighbridgeBridge
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             grid.ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableAlwaysIncludeHeaderText;
             grid.Enter += (sender, e) => activeLogGrid = grid;
+            grid.FontChanged += (sender, e) =>
+            {
+                grid.DefaultCellStyle.Font = grid.Font;
+                grid.ColumnHeadersDefaultCellStyle.Font =
+                    grid.Font.Size == UiTheme.Body.Size ? UiTheme.Strong : new Font(grid.Font, FontStyle.Bold);
+            };
         }
         void RefreshInterface()
         {

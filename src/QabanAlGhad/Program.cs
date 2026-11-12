@@ -15,8 +15,17 @@ namespace WeighbridgeBridge
             {
                 updated = UpdateTransaction.Startup(app, args);
             }
-            catch (System.Exception)
+            catch (System.Exception ex)
             {
+                try
+                {
+                    System.IO.File.AppendAllText(System.IO.Path.Combine(app, "update-error.log"),
+                                                 System.DateTime.UtcNow.ToString("o") + " " + ex +
+                                                     System.Environment.NewLine);
+                }
+                catch
+                {
+                }
                 AppMessage.Show(
                     "تعذر استعادة التحديث. احتفظ بملفات النسخة السابقة وراجع سجل التحديث قبل المحاولة مجددًا.");
                 return 1;
