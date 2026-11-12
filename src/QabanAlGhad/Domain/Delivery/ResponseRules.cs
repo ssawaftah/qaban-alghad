@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Web.Script.Serialization;
 
 namespace WeighbridgeBridge
@@ -23,7 +24,8 @@ namespace WeighbridgeBridge
                     return "الإقرار accepted:true غير موجود";
                 if (!value.TryGetValue("weightKg", out echo) || !IsNumber(echo))
                     return "وزن الإقرار غير موجود أو غير رقمي";
-                return OutputChannel.ReturnsAccepted(body, weight) ? null : "وزن الإقرار لا يطابق العينة";
+                return Convert.ToDecimal(echo, CultureInfo.InvariantCulture) == weight ? null
+                                                                                       : "وزن الإقرار لا يطابق العينة";
             }
             catch
             {

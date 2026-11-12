@@ -113,6 +113,11 @@ namespace WeighbridgeBridge
                         Capture(form, "ui-settings-" + factor + ".png");
                         Call(form, "ShowScreen", Field(form, "logsPage"), Field(form, "logsNav"));
                         Check(((TextBox)Field(form, "logSearch")).Width >= 120, "scaled log search usable");
+                        foreach (var control in All((Control)Field(form, "logsPage")))
+                            if (control.AccessibleName == "تبديل متابعة السجل")
+                                Check(control.Left >= 0 && control.Right <= control.Parent.ClientSize.Width &&
+                                          control.Bottom <= control.Parent.ClientSize.Height,
+                                      "log toolbar wraps without clipping at scale " + factor);
                         Check(((DataGridView)Field(form, "readingGrid")).Height >= 70 * scale,
                               "reading table remains usable at scale " + factor);
                         Check(((DataGridView)Field(form, "eventGrid")).Height >= 70 * scale,

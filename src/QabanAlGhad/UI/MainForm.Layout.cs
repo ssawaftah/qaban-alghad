@@ -403,7 +403,7 @@ namespace WeighbridgeBridge
             logsPage.SizeChanged += (sender, e) => outer.Height =
                 Math.Max(outer.MinimumSize.Height, logsPage.ClientSize.Height);
             outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            outer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
@@ -414,8 +414,10 @@ namespace WeighbridgeBridge
             logTimes.Dock = DockStyle.Fill;
             logTimes.TextAlign = ContentAlignment.MiddleCenter;
             outer.Controls.Add(logTimes, 0, 6);
-            var tools = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
-                                              WrapContents = false };
+            var tools = new FlowLayoutPanel {
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, WrapContents = true,
+                AutoSize = true,       AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(0, 40)
+            };
             logSearch.Width = 180;
             logSearch.AccessibleName = "البحث في السجل";
             logFilter.Width = 120;
