@@ -60,6 +60,7 @@ namespace WeighbridgeBridge
                 Check(LocalSecrets.TryUnprotect("", out plain) && plain == "",
                       "absent secret differs from decryption failure");
                 Check(!LocalSecrets.TryUnprotect("broken-protected-secret", out plain), "broken secret detected");
+                Check(!LocalSecrets.TryUnprotect("AA==", out plain), "malformed protected bytes fail closed");
                 Check(LocalSecrets.UpdateProtected("broken-protected-secret", "") == "broken-protected-secret",
                       "blank field preserves inaccessible ciphertext");
                 string updated = LocalSecrets.UpdateProtected("broken-protected-secret", "replacement-test-only");

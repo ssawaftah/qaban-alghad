@@ -27,22 +27,43 @@ namespace WeighbridgeBridge
             var info = new FileInfo(path);
             if (info.Length > 65536)
                 throw new InvalidDataException("Settings too large.");
-            var serializer = new JavaScriptSerializer { MaxJsonLength = 65536 };
             string json = File.ReadAllText(path);
-            var fields = serializer.DeserializeObject(json) as Dictionary<string, object>;
-            if (fields == null || !fields.ContainsKey("Port") || !fields.ContainsKey("Endpoint") ||
-                !fields.ContainsKey("Company"))
-                throw new InvalidDataException("Incomplete settings.");
             try
             {
+                var serializer = new JavaScriptSerializer { MaxJsonLength = 65536 };
+                var fields = serializer.DeserializeObject(json) as Dictionary<string, object>;
+                if (fields == null || !fields.ContainsKey("Port") || !fields.ContainsKey("Endpoint") ||
+                    !fields.ContainsKey("Company"))
+                    throw new InvalidDataException("Incomplete settings.");
                 var settings = serializer.Deserialize<Settings>(json);
                 Validate(settings);
                 return settings;
             }
             catch (OverflowException ex)
             {
-                throw new InvalidDataException("قيمة رقمية في الإعدادات خارج النطاق المسموح.", ex);
+                throw CorruptSettings(ex);
             }
+            catch (FormatException ex)
+            {
+                throw CorruptSettings(ex);
+            }
+            catch (ArgumentException ex)
+            {
+                throw CorruptSettings(ex);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw CorruptSettings(ex);
+            }
+            catch (InvalidCastException ex)
+            {
+                throw CorruptSettings(ex);
+            }
+        }
+
+        static InvalidDataException CorruptSettings(Exception cause)
+        {
+            return new InvalidDataException("محتوى ملف الإعدادات غير صالح أو يتضمن قيمة خارج النطاق المسموح.", cause);
         }
 
         public static void Validate(Settings settings)
