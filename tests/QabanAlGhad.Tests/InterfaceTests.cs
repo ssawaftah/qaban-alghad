@@ -80,7 +80,15 @@ namespace WeighbridgeBridge
                 {
                     try
                     {
+                        var fonts = new Dictionary<Control, Font>();
+                        fonts[form] = form.Font;
+                        foreach (var child in All(form))
+                            fonts[child] = child.Font;
+                        form.AutoScaleMode = AutoScaleMode.None;
                         form.Scale(new SizeF(scale, scale));
+                        foreach (var item in fonts)
+                            item.Key.Font = new Font(item.Value.FontFamily, item.Value.Size * scale, item.Value.Style,
+                                                     item.Value.Unit);
                         Set(form, "compactClient", form.ClientSize);
                         Set(form, "pageScale", form.ClientSize.Width / 640f);
                         Call(form, "ShowScreen", Field(form, "settingsPage"), Field(form, "settingsNav"));
@@ -91,11 +99,24 @@ namespace WeighbridgeBridge
                             Check(control.Width >= 40 && control.Height >= 20, "scaled input usable: " + name);
                             Check(!string.IsNullOrWhiteSpace(control.AccessibleName),
                                   "scaled input accessible: " + name);
+                            var host = control.Parent;
+                            var grid = host.Parent as TableLayoutPanel;
+                            if (grid != null)
+                            {
+                                var label = grid.GetControlFromPosition(0, grid.GetRow(host));
+                                Check(Math.Abs(label.PointToScreen(Point.Empty).Y + label.Height / 2 -
+                                               control.PointToScreen(Point.Empty).Y - control.Height / 2) <= 5 * scale,
+                                      "scaled field remains vertically aligned: " + name);
+                            }
                         }
                         Check(((Panel)Field(form, "settingsPage")).AutoScroll, "scaled settings can scroll");
                         Capture(form, "ui-settings-" + factor + ".png");
                         Call(form, "ShowScreen", Field(form, "logsPage"), Field(form, "logsNav"));
                         Check(((TextBox)Field(form, "logSearch")).Width >= 120, "scaled log search usable");
+                        Check(((DataGridView)Field(form, "readingGrid")).Height >= 70 * scale,
+                              "reading table remains usable at scale " + factor);
+                        Check(((DataGridView)Field(form, "eventGrid")).Height >= 70 * scale,
+                              "event table remains usable at scale " + factor);
                         Capture(form, "ui-logs-" + factor + ".png");
                         Console.WriteLine("PASS: layout scale " + factor + " with accessible settings and logs");
                     }

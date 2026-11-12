@@ -290,6 +290,7 @@ namespace WeighbridgeBridge
             parity.DropDownStyle = ComboBoxStyle.DropDownList;
             parity.Items.AddRange(new object[] { "None", "Even", "Odd", "Mark", "Space" });
             parity.DrawMode = DrawMode.OwnerDrawFixed;
+            parity.FontChanged += (sender, e) => parity.ItemHeight = Math.Max(18, parity.Font.Height + 6);
             parity.DrawItem += (sender, e) =>
             {
                 e.DrawBackground();
@@ -358,7 +359,7 @@ namespace WeighbridgeBridge
             content.Controls.Add(heading, 0, 0);
             var grid =
                 new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 0, BackColor = Color.White };
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 105));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
             grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             content.Controls.Add(grid, 0, 1);
             card.Controls.Add(content);
@@ -370,8 +371,9 @@ namespace WeighbridgeBridge
             int row = grid.RowCount++;
             grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 47));
             grid.Controls.Add(CenterLabel(title, 9, Muted, Color.White), 0, row);
-            input.Dock = DockStyle.Fill;
-            input.Margin = new Padding(0, 8, 0, 8);
+            input.Dock = DockStyle.None;
+            input.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            input.Margin = new Padding(0);
             input.Font = new Font("Segoe UI", 10);
             input.RightToLeft = RightToLeft.No;
             input.AccessibleName = title;
@@ -385,12 +387,21 @@ namespace WeighbridgeBridge
             var number = input as NumericUpDown;
             if (number != null)
                 number.TextAlign = HorizontalAlignment.Center;
-            grid.Controls.Add(input, 1, row);
+            var host = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 8),
+                                   Padding = new Padding(0, 0, 18, 0), AccessibleName = title };
+            host.Controls.Add(input);
+            host.Layout += (sender, e) =>
+                input.SetBounds(0, Math.Max(0, (host.ClientSize.Height - input.Height) / 2),
+                                Math.Max(1, host.ClientSize.Width - host.Padding.Right), input.Height);
+            grid.Controls.Add(host, 1, row);
         }
         void BuildLogs()
         {
-            var outer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, BackColor = Canvas,
+            var outer = new TableLayoutPanel { Dock = DockStyle.Top,    Height = 460, MinimumSize = new Size(0, 460),
+                                               ColumnCount = 1,         RowCount = 7, BackColor = Canvas,
                                                Padding = new Padding(8) };
+            logsPage.SizeChanged += (sender, e) => outer.Height =
+                Math.Max(outer.MinimumSize.Height, logsPage.ClientSize.Height);
             outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
@@ -501,6 +512,8 @@ namespace WeighbridgeBridge
             grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(221, 239, 236);
             grid.DefaultCellStyle.SelectionForeColor = Ink;
             grid.RowTemplate.Height = 30;
+            grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCellsExceptHeaders;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             grid.ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableAlwaysIncludeHeaderText;
             grid.Enter += (sender, e) => activeLogGrid = grid;
