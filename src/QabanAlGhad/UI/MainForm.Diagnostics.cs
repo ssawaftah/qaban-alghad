@@ -79,9 +79,21 @@ namespace WeighbridgeBridge {
     using(var dialog=new Form{Text="فحص الاتصال",Width=525,Height=390,StartPosition=FormStartPosition.CenterParent}){
      var body=new TextBox{Multiline=true,ReadOnly=true,Dock=DockStyle.Fill,ScrollBars=ScrollBars.Vertical,Text=details,RightToLeft=RightToLeft.Yes};
      if(lastFrame.Length>0)body.AppendText(Environment.NewLine+"آخر إطار: "+lastFrame);
-     var copy=new Button{Text="نسخ التشخيص",Dock=DockStyle.Bottom,Height=36};
+     var actions=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=42,FlowDirection=FlowDirection.RightToLeft};
+     var copy=new Button{Text="نسخ التشخيص",Width=125,Height=32};
      copy.Click+=(sender,e)=>{try{Clipboard.SetText(details);copy.Text="تم النسخ";}catch(ExternalException){copy.Text="تعذر النسخ";}};
-     dialog.Controls.Add(body);dialog.Controls.Add(copy);
+     var export=new Button{Text="حفظ التقرير",Width=125,Height=32};
+     export.Click+=(sender,e)=>{
+      using(var destination=new SaveFileDialog{Filter="ملف نصي (*.txt)|*.txt",FileName="QabanAlGhad-diagnostics.txt"}){
+       if(destination.ShowDialog(dialog)!=DialogResult.OK)return;
+       try{File.WriteAllText(destination.FileName,details,Encoding.UTF8);export.Text="تم الحفظ";}
+       catch(Exception){MessageBox.Show(dialog,"تعذر حفظ التقرير.");}
+      }
+     };
+     actions.Controls.Add(copy);
+     actions.Controls.Add(export);
+     dialog.Controls.Add(body);
+     dialog.Controls.Add(actions);
      dialog.ShowDialog(this);
     }
    }catch(Exception){if(!IsDisposed)MessageBox.Show("تعذر فحص المنافذ.");}

@@ -10,50 +10,71 @@ namespace WeighbridgeBridge
 {
     public sealed partial class MainForm
     {
-        readonly Button checkUpdate = new Button(), installUpdate = new Button();
+        readonly Button checkUpdate = new Button();
+        Label versionCredit;
+        static readonly Version CurrentVersion = Assembly.GetExecutingAssembly().GetName().Version;
         readonly CancellationTokenSource updateCancellation = new CancellationTokenSource();
         AvailableUpdate availableUpdate;
         bool updating, checkingUpdate;
 
         void BindUpdates()
         {
-            checkUpdate.Click += async (s, e) => await CheckUpdate(true);
-            installUpdate.Click += async (s, e) => await InstallUpdate();
-            Shown += async (s, e) => await CheckUpdate(false);
+            checkUpdate.Click += async (s, e) =>
+            {
+                if (availableUpdate == null) await CheckUpdate();
+                else await InstallUpdate();
+            };
             FormClosing += (s, e) => updateCancellation.Cancel();
         }
 
-        async Task CheckUpdate(bool manual)
+        void ShowUpdateButton(string caption, bool offerUpdate)
+        {
+            checkUpdate.Text = caption;
+            checkUpdate.AccessibleName = caption;
+            checkUpdate.BackColor = offerUpdate ? Accent : System.Drawing.Color.FromArgb(231, 237, 241);
+            checkUpdate.ForeColor = offerUpdate ? System.Drawing.Color.White : Ink;
+            checkUpdate.FlatAppearance.MouseOverBackColor = offerUpdate
+                ? System.Drawing.Color.FromArgb(0, 105, 98)
+                : System.Drawing.Color.FromArgb(219, 229, 235);
+        }
+
+        async Task CheckUpdate()
         {
             if (checkingUpdate || updating) return;
-            checkingUpdate = true; checkUpdate.Enabled = false;
+            checkingUpdate = true;
+            checkUpdate.Enabled = false;
+            ShowUpdateButton("جارٍ التحقق", false);
             try
             {
-                availableUpdate = await ReleaseClient.Check(Assembly.GetExecutingAssembly().GetName().Version, updateCancellation.Token);
-                if (IsDisposed) return;
-                installUpdate.Visible = availableUpdate != null;
-                if (manual && availableUpdate == null) MessageBox.Show("البرنامج محدّث.", "قبان الغد");
+                availableUpdate = await ReleaseClient.Check(CurrentVersion, updateCancellation.Token);
+                if (IsDisposed || updateCancellation.IsCancellationRequested) return;
+                ShowUpdateButton(availableUpdate == null ? "لا توجد تحديثات" : "يوجد تحديث", availableUpdate != null);
             }
             catch (Exception ex)
             {
-                if (updateCancellation.IsCancellationRequested) return;
+                if (IsDisposed || updateCancellation.IsCancellationRequested) return;
+                availableUpdate = null;
                 WriteBackgroundLog("Update check: " + ex.GetType().Name);
-                if (manual) MessageBox.Show("تعذر التحقق من التحديثات. حاول لاحقًا.", "قبان الغد");
+                ShowUpdateButton("تعذر التحقق", false);
             }
-            finally { checkingUpdate = false; if (!IsDisposed) checkUpdate.Enabled = true; }
+            finally
+            {
+                checkingUpdate = false;
+                if (!IsDisposed) checkUpdate.Enabled = true;
+            }
         }
 
         async Task InstallUpdate()
         {
-            if (updating || availableUpdate == null) return;
-            updating = true; installUpdate.Enabled = false; checkUpdate.Enabled = false;
+            if (updating || checkingUpdate || availableUpdate == null) return;
+            updating = true; checkUpdate.Enabled = false;
             string stage = null;
             try
             {
                 var update = availableUpdate;
                 stage = UpdateTransaction.NewStage(Application.StartupPath);
                 string zip = Path.Combine(stage, "package.zip");
-                installUpdate.Text = "جارٍ التنزيل";
+                ShowUpdateButton("جارٍ التنزيل", false);
                 await ReleaseClient.Fetch(update, zip, updateCancellation.Token);
                 // Extraction and hashing run away from the serial polling/UI thread.
                 await Task.Run(() => UpdateTransaction.Extract(zip, stage, update.Version, update.Sha256));
@@ -85,7 +106,7 @@ namespace WeighbridgeBridge
             finally
             {
                 updating = false;
-                if (!IsDisposed) { installUpdate.Text = "تحديث البرنامج"; installUpdate.Enabled = true; checkUpdate.Enabled = true; }
+                if (!IsDisposed) { ShowUpdateButton("يوجد تحديث", true); checkUpdate.Enabled = true; }
                 // Retain only stages that contain a recovery backup.
                 if (stage != null && !Directory.Exists(Path.Combine(stage, "old")))
                     try { Directory.Delete(stage, true); } catch { }

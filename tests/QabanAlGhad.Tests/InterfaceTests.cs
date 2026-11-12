@@ -40,7 +40,12 @@ namespace WeighbridgeBridge {
       Check(overviewNav.PointToScreen(Point.Empty).X>logsNav.PointToScreen(Point.Empty).X&&logsNav.PointToScreen(Point.Empty).X>settingsNav.PointToScreen(Point.Empty).X,"tabs ordered weight logs settings");
       Check(Math.Abs(overviewNav.Width-logsNav.Width)<=2&&Math.Abs(logsNav.Width-settingsNav.Width)<=2,"tabs equal width");
       Check(overviewNav.BackColor.G>overviewNav.BackColor.R&&overviewNav.ForeColor==Color.White,"default tab active green");
-      Check(form.ClientSize.Width<=700&&form.ClientSize.Height<=280,"compact default window");
+      Check(form.ClientSize.Width<=700&&form.ClientSize.Height<=340,"compact default window");
+      var updateButton=(Button)Field(form,"checkUpdate");
+      var credit=(Label)Field(form,"versionCredit");
+      Check(updateButton.Visible&&credit.Visible,"update header visible on overview");
+      Check(credit.Text==typeof(MainForm).Assembly.GetName().Version.ToString(3)+" - Abdelrahman Sawaftah","credit follows application version");
+      Check(updateButton.PointToScreen(Point.Empty).Y<credit.PointToScreen(Point.Empty).Y&&credit.PointToScreen(Point.Empty).Y<overviewNav.PointToScreen(Point.Empty).Y,"credit below update button and above tabs");
       Size compactSize=form.ClientSize;
       Check(weight.Text=="kg","no dash or fabricated zero");
       foreach(var control in All(form))Check(!(control is CheckBox),"no send checkbox");
@@ -65,6 +70,7 @@ namespace WeighbridgeBridge {
       Call(form,"ShowScreen",Field(form,"settingsPage"),Field(form,"settingsNav"));
       foreach(var control in All((Control)Field(form,"settingsPage"))){var grid=control as TableLayoutPanel;if(grid==null||grid.ColumnCount!=2)continue;foreach(Control label in grid.Controls){if(!(label is Label))continue;int row=grid.GetRow(label);var input=grid.GetControlFromPosition(1,row);if(input==null)continue;Check(Math.Abs(label.PointToScreen(Point.Empty).Y+label.Height/2-input.PointToScreen(Point.Empty).Y-input.Height/2)<15,"setting labels align with inputs");}}
       Check(form.ClientSize.Width>compactSize.Width&&form.ClientSize.Height>compactSize.Height,"settings expand for readability");
+      Check(updateButton.Visible&&credit.Visible,"update header visible in settings");
       Capture(form,"ui-settings.png");
       Call(form,"ShowScreen",Field(form,"logsPage"),Field(form,"logsNav"));Check(logsNav.ForeColor==Color.White&&overviewNav.ForeColor!=Color.White,"selected tab highlight follows navigation");Call(form,"WriteLog","اختبار واجهة محلي دون أوزان إنتاجية");
       Call(form,"RememberReading",now,"ST,GS,-120,kg",true,-120m);Call(form,"FlushReadingLog",now);Call(form,"FlushReadingLog",now+100);
@@ -72,6 +78,7 @@ namespace WeighbridgeBridge {
       Check(readings.Rows.Count==1,"one reading per second");
       Call(form,"FlushReadingLog",now+1000);Check(readings.Rows.Count==1,"no old frame logged as a new arrival");
       Call(form,"RememberReading",now+1100,"ST,GS,-120,kg",true,-120m);Call(form,"FlushReadingLog",now+1100);Check(readings.Rows.Count==2,"unchanged new arrival logged");Check(events.Rows.Count==1,"separate events list");
+      Check(updateButton.Visible&&credit.Visible,"update header visible in logs");
       Capture(form,"ui-logs.png");
       Call(form,"ShowScreen",Field(form,"overviewPage"),Field(form,"overviewNav"));Check(form.ClientSize==compactSize,"return to compact weight view");
       Console.WriteLine("PASS: Windows UI layout, settings lock, local status and split logs");

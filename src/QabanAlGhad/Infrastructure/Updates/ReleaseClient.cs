@@ -116,9 +116,7 @@ namespace WeighbridgeBridge
                 catch (WebException ex)
                 {
                     var response = ex.Response as HttpWebResponse;
-                    bool missing = response != null && response.StatusCode == HttpStatusCode.NotFound;
                     if (response != null) response.Dispose();
-                    if (missing) return null;
                     throw;
                 }
                 return Parse(File.ReadAllText(file), current);
