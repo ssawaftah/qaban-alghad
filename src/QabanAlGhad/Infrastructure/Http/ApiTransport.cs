@@ -10,7 +10,7 @@ namespace WeighbridgeBridge
     public sealed class ApiReply
     {
         public int StatusCode, RetryAfterMilliseconds;
-        public string MediaType, Body;
+        public string MediaType, Body, DiagnosticCode;
     }
     public static class ApiTransport
     {

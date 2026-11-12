@@ -23,6 +23,7 @@ namespace WeighbridgeBridge
         int suppressedFailures;
         public bool Ready { get; private set; }
         public string ConfigurationError { get; private set; }
+        public string LastResponseIssue { get; private set; }
         public Task Pending { get; private set; }
         readonly OutputKind kind;
         readonly string name;
@@ -56,17 +57,18 @@ namespace WeighbridgeBridge
             Schedule.Reset();
             Ready = false;
             ConfigurationError = null;
+            LastResponseIssue = null;
             Uri uri;
             if (!Uri.TryCreate(url, UriKind.Absolute, out uri) || uri.UserInfo != "" || uri.Fragment != "" ||
                 uri.Query != "" ||
                 (uri.Scheme != "https" && !(allowLoopback && uri.Scheme == "http" && uri.Host == "127.0.0.1")))
             {
-                ConfigurationError = "عنوان غير صالح";
+                ConfigurationFailed("عنوان غير صالح");
                 return;
             }
             if (kind == OutputKind.Returns && string.IsNullOrWhiteSpace(token))
             {
-                ConfigurationError = "رمز API مطلوب";
+                ConfigurationFailed("رمز API مطلوب");
                 return;
             }
             endpoint = url;
@@ -74,6 +76,12 @@ namespace WeighbridgeBridge
             company = companyId;
             freshness = freshnessMs;
             Ready = true;
+        }
+        void ConfigurationFailed(string reason)
+        {
+            ConfigurationError = reason;
+            if (log != null)
+                log("[" + name + "] تعذر تهيئة القناة: " + reason);
         }
         public void Stop()
         {
@@ -153,6 +161,8 @@ namespace WeighbridgeBridge
                      failure = ResponseRules.ExplicitFailure(reply.Body);
                 bool accepted = ReturnsAccepted(reply.Body, weight);
                 Feedback.Reply(reply.StatusCode, accepted, html, failure);
+                LastResponseIssue = ResponseRules.ReturnsIssue(reply.StatusCode, reply.MediaType, reply.Body, weight);
+                reply.DiagnosticCode = LastResponseIssue;
                 if (Feedback.ServerError || !accepted)
                 {
                     long now = clock();
@@ -163,7 +173,7 @@ namespace WeighbridgeBridge
                         if (save != null)
                             save(reply, Feedback.ServerError ? "last-error-returns.txt" : "response-returns.txt");
                         if (log != null)
-                            log("[" + name + "] " + Feedback.ServerText);
+                            log("[" + name + "] " + LastResponseIssue);
                     }
                 }
                 else

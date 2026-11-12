@@ -33,6 +33,9 @@
     <Compile Include="Infrastructure\Configuration\Bootstrap.cs" />
     <Compile Include="Infrastructure\Http\ApiTransport.cs" />
     <Compile Include="Infrastructure\Security\LocalSecrets.cs" />
+    <Compile Include="Infrastructure\Logging\BackgroundLogWriter.cs" />
+    <Compile Include="Infrastructure\Serial\SerialSession.cs" />
+    <Compile Include="Domain\Weighing\ReadingDescription.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UI\Controls\SurfacePanel.cs" />

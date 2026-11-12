@@ -6,6 +6,30 @@ namespace WeighbridgeBridge
 {
     public static class ResponseRules
     {
+        public static string ReturnsIssue(int code, string media, string body, decimal weight)
+        {
+            if (code < 200 || code >= 300)
+                return "HTTP " + code;
+            if (IsHtml(media, body))
+                return "استجابة HTML بدل إقرار JSON";
+            if (ExplicitFailure(body))
+                return "رفض الخادم الإقرار";
+            try
+            {
+                var value = new JavaScriptSerializer().DeserializeObject(body) as Dictionary<string, object>;
+                object accepted, echo;
+                if (value == null || !value.TryGetValue("accepted", out accepted) || !(accepted is bool) ||
+                    !(bool)accepted)
+                    return "الإقرار accepted:true غير موجود";
+                if (!value.TryGetValue("weightKg", out echo) || !IsNumber(echo))
+                    return "وزن الإقرار غير موجود أو غير رقمي";
+                return OutputChannel.ReturnsAccepted(body, weight) ? null : "وزن الإقرار لا يطابق العينة";
+            }
+            catch
+            {
+                return "استجابة JSON غير صالحة";
+            }
+        }
         public static bool IsHtml(string media, string body)
         {
             return (media ?? "").IndexOf("html", StringComparison.OrdinalIgnoreCase) >= 0 ||

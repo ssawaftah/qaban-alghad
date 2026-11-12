@@ -33,9 +33,16 @@ namespace WeighbridgeBridge
             if (fields == null || !fields.ContainsKey("Port") || !fields.ContainsKey("Endpoint") ||
                 !fields.ContainsKey("Company"))
                 throw new InvalidDataException("Incomplete settings.");
-            var settings = serializer.Deserialize<Settings>(json);
-            Validate(settings);
-            return settings;
+            try
+            {
+                var settings = serializer.Deserialize<Settings>(json);
+                Validate(settings);
+                return settings;
+            }
+            catch (OverflowException ex)
+            {
+                throw new InvalidDataException("قيمة رقمية في الإعدادات خارج النطاق المسموح.", ex);
+            }
         }
 
         public static void Validate(Settings settings)
