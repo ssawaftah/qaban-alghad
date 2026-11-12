@@ -22,7 +22,7 @@ namespace WeighbridgeBridge
         NumericUpDown baud = new NumericUpDown(), bits = new NumericUpDown(), interval = new NumericUpDown(),
                       fresh = new NumericUpDown();
         ComboBox parity = new ComboBox(), port = new ComboBox();
-        Button start = new Button(), stop = new Button(), save = new Button();
+        Button start = new ActionButton(), stop = new ActionButton(), save = new ActionButton();
         Label weight = new Label();
         TableLayoutPanel fields = new TableLayoutPanel();
         decimal latest;

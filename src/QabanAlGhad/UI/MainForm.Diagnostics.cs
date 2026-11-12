@@ -128,27 +128,49 @@ namespace WeighbridgeBridge
                     "قبان الغد " + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3) +
                     Environment.NewLine + "المنفذ المختار: " + SafePort(port.Text) + Environment.NewLine +
                     "المنافذ المتاحة: " + ports + Environment.NewLine + "الاتصال: " + baud.Value + " / " +
-                    bits.Value + " / " + parity.Text + " / 1" + Environment.NewLine + "الحالة: " + state +
-                    Environment.NewLine + "آخر قراءة: " + reading + Environment.NewLine + "آخر إرسال: " + sent +
-                    Environment.NewLine + "آخر عطل منفذ: " + (lastSerialIssue ?? "—") + Environment.NewLine +
-                    "آخر عطل إرسال: " + (primary.LastTransportIssue ?? "—") + Environment.NewLine +
-                    "القناة الخلفية: " +
+                    bits.Value + " / " + UiTheme.ParityName(parity.Text) + " / 1" + Environment.NewLine +
+                    "الحالة: " + state + Environment.NewLine + "آخر قراءة: " + reading + Environment.NewLine +
+                    "آخر إرسال: " + sent + Environment.NewLine + "آخر عطل منفذ: " + (lastSerialIssue ?? "—") +
+                    Environment.NewLine + "آخر عطل إرسال: " + (primary.LastTransportIssue ?? "—") +
+                    Environment.NewLine + "القناة الخلفية: " +
                     (returns.ConfigurationError ?? returns.LastResponseIssue ?? returns.LastTransportIssue ??
                      (returns.Ready ? "مهيأة" : "متوقفة")) +
                     Environment.NewLine + "أخطاء حفظ السجل: " + logWriter.Errors +
                     " | أحداث لم تُحفظ: " + logWriter.Dropped + Environment.NewLine +
                     "هذا تشخيص للحالة المحلية؛ لا يرسل طلب اختبار إلى الخادم.";
-                using (var dialog = new Form { Text = "تشخيص الاتصال", Width = 525, Height = 390,
-                                               StartPosition = FormStartPosition.CenterParent })
+                using (var dialog = new Form())
                 {
-                    var body = new TextBox { Multiline = true,      ReadOnly = true,
-                                             Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical,
-                                             Text = details,        RightToLeft = RightToLeft.Yes };
+                    UiTheme.Dialog(dialog, "تشخيص الاتصال", new Size(640, 540));
+                    var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
+                                                         Padding = new Padding(24, 16, 24, 16) };
+                    content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                    content.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+                    content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                    content.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+                    content.Controls.Add(UiTheme.Label("تشخيص الاتصال", UiTheme.Heading), 0, 0);
+                    var card = new SurfacePanel { Dock = DockStyle.Fill, Surface = Color.White,
+                                                  Padding = new Padding(16), Margin = new Padding(0) };
+                    var body = new TextBox { Multiline = true,
+                                             ReadOnly = true,
+                                             Dock = DockStyle.Fill,
+                                             ScrollBars = ScrollBars.Vertical,
+                                             Text = details,
+                                             RightToLeft = RightToLeft.Yes,
+                                             Font = UiTheme.Body,
+                                             BorderStyle = BorderStyle.None,
+                                             BackColor = Color.White,
+                                             ForeColor = UiTheme.Navy,
+                                             AccessibleName = "تقرير تشخيص الاتصال" };
                     if (lastFrame.Length > 0)
                         body.AppendText(Environment.NewLine + "آخر إطار: " + lastFrame);
-                    var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 42,
-                                                        FlowDirection = FlowDirection.RightToLeft };
-                    var copy = new Button { Text = "نسخ التشخيص", Width = 125, Height = 32 };
+                    card.Controls.Add(body);
+                    content.Controls.Add(card, 0, 1);
+                    var actions =
+                        new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft,
+                                              RightToLeft = RightToLeft.No, WrapContents = false,
+                                              Padding = new Padding(0, 8, 0, 0) };
+                    var copy = new ActionButton();
+                    UiTheme.Button(copy, "نسخ التقرير", true);
                     copy.Click += (sender, e) =>
                     {
                         try
@@ -161,11 +183,13 @@ namespace WeighbridgeBridge
                             copy.Text = "تعذر النسخ";
                         }
                     };
-                    var export = new Button { Text = "حفظ التقرير", Width = 125, Height = 32 };
+                    var export = new ActionButton();
+                    UiTheme.Button(export, "حفظ التقرير", false);
                     export.Click += (sender, e) =>
                     {
-                        using (var destination = new SaveFileDialog { Filter = "ملف نصي (*.txt)|*.txt",
-                                                                      FileName = "QabanAlGhad-diagnostics.txt" })
+                        using (var destination =
+                                   new SaveFileDialog { Title = "حفظ تقرير التشخيص", Filter = "ملف نصي (*.txt)|*.txt",
+                                                        FileName = "QabanAlGhad-diagnostics.txt" })
                         {
                             if (destination.ShowDialog(dialog) != DialogResult.OK)
                                 return;
@@ -176,21 +200,26 @@ namespace WeighbridgeBridge
                             }
                             catch (Exception)
                             {
-                                MessageBox.Show(dialog, "تعذر حفظ التقرير.");
+                                AppMessage.Show(dialog, "تعذر حفظ التقرير.");
                             }
                         }
                     };
                     actions.Controls.Add(copy);
                     actions.Controls.Add(export);
-                    dialog.Controls.Add(body);
-                    dialog.Controls.Add(actions);
+                    var close = new ActionButton();
+                    UiTheme.Button(close, "إغلاق", false);
+                    close.DialogResult = DialogResult.Cancel;
+                    actions.Controls.Add(close);
+                    dialog.CancelButton = close;
+                    content.Controls.Add(actions, 0, 2);
+                    dialog.Controls.Add(content);
                     dialog.ShowDialog(this);
                 }
             }
             catch (Exception)
             {
                 if (!IsDisposed)
-                    MessageBox.Show("تعذر فحص المنافذ.");
+                    AppMessage.Show("تعذر فحص المنافذ.");
             }
             finally
             {

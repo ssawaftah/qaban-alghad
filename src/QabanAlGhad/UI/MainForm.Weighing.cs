@@ -44,13 +44,17 @@ namespace WeighbridgeBridge
                 start.Enabled = false;
                 stop.Enabled = true;
                 save.Enabled = false;
-                weight.Text = "kg";
+                weight.Text = "كغ";
                 WriteLog("بدء القراءة " + settings.Port + " / " + settings.Baud + " / " + settings.DataBits + " / " +
                          settings.Parity + " / StopBits.One");
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "قبان الغد");
+                AppMessage.Show(this,
+                                ex is InvalidOperationException
+                                    ? ex.Message
+                                    : "تعذر بدء قراءة الميزان. راجع الإعدادات وتشخيص الاتصال ثم أعد المحاولة.",
+                                "بدء القراءة");
             }
         }
 
@@ -65,7 +69,7 @@ namespace WeighbridgeBridge
             start.Enabled = serialSession.Completion.IsCompleted;
             stop.Enabled = false;
             save.Enabled = true;
-            weight.Text = "kg";
+            weight.Text = "كغ";
         }
 
         void Tick(object sender, EventArgs e)
@@ -109,7 +113,7 @@ namespace WeighbridgeBridge
             bool recent = ReadingPolicy.IsFresh(now, received, settings.Freshness);
             if (!recent && received >= 0)
                 readingState = "لا تصل قراءة";
-            weight.Text = recent ? latest.ToString(CultureInfo.InvariantCulture) + " kg" : "kg";
+            weight.Text = recent ? latest.ToString(CultureInfo.InvariantCulture) + " كغ" : "كغ";
             FlushReadingLog(now);
             primary.Pump(now, true, received, sampledAtUtc, latest);
             returns.Pump(now, true, received, sampledAtUtc, latest);

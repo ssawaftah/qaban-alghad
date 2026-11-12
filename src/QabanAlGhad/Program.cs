@@ -17,7 +17,17 @@ namespace WeighbridgeBridge
             }
             catch (System.Exception ex)
             {
-                MessageBox.Show("تعذر استعادة التحديث.\n" + ex.Message);
+                try
+                {
+                    System.IO.File.AppendAllText(System.IO.Path.Combine(app, "update-error.log"),
+                                                 System.DateTime.UtcNow.ToString("o") + " " + ex +
+                                                     System.Environment.NewLine);
+                }
+                catch
+                {
+                }
+                AppMessage.Show(
+                    "تعذر استعادة التحديث. احتفظ بملفات النسخة السابقة وراجع سجل التحديث قبل المحاولة مجددًا.");
                 return 1;
             }
             if (pending && !updated)
@@ -27,7 +37,7 @@ namespace WeighbridgeBridge
             {
                 if (!first)
                 {
-                    MessageBox.Show("البرنامج مفتوح بالفعل.");
+                    AppMessage.Show("البرنامج مفتوح بالفعل.");
                     return 1;
                 }
                 Application.EnableVisualStyles();
